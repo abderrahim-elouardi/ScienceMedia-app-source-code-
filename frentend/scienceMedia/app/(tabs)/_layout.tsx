@@ -30,6 +30,22 @@ export default function TabLayout() {
           tabBarIcon: ({ color }) => <IconSymbol size={28} name="paperplane.fill" color={color} />,
         }}
       />
+      <Tabs.Screen
+        name="messages"
+        options={{
+          title: 'Messages',
+          headerShown: true, // On l'active pour le voir
+          headerStyle: {
+            backgroundColor:  Colors[colorScheme ?? 'light'].background, // Couleur de fond de la barre
+          },
+          headerTintColor:  Colors[colorScheme ?? 'light'].tint, // Couleur du texte et des icônes
+          headerTitleStyle: {
+            fontWeight: 'bold',
+            fontSize: 20,
+          },
+          tabBarIcon: ({ color }) => <IconSymbol size={28} name="t.bubble.fill" color={color} />,
+        }}
+      />
     </Tabs>
   );
 }
