@@ -18,9 +18,92 @@ export default function MessagesScreen() {
             lastMessage: 'See you later!',
             numberNewMessages: 1,
             image: 'https://randomuser.me/api/ports/2',
-        }
+        },
+        {
+            id: 1,
+            name: 'Alice',
+            lastMessage: 'Hey, how are you?',
+            numberNewMessages: 2,
+            image: 'https://randomuser.me/api/ports/1',
+        },
+        {
+            id: 2,
+            name: 'Bob',
+            lastMessage: 'See you later!',
+            numberNewMessages: 1,
+            image: 'https://randomuser.me/api/ports/2',
+        },
+        {
+            id: 1,
+            name: 'Alice',
+            lastMessage: 'Hey, how are you?',
+            numberNewMessages: 2,
+            image: 'https://randomuser.me/api/ports/1',
+        },
+        {
+            id: 2,
+            name: 'Bob',
+            lastMessage: 'See you later!',
+            numberNewMessages: 1,
+            image: 'https://randomuser.me/api/ports/2',
+        },
+        {
+            id: 1,
+            name: 'Alice',
+            lastMessage: 'Hey, how are you?',
+            numberNewMessages: 2,
+            image: 'https://randomuser.me/api/ports/1',
+        },
+        {
+            id: 2,
+            name: 'Bob',
+            lastMessage: 'See you later!',
+            numberNewMessages: 1,
+            image: 'https://randomuser.me/api/ports/2',
+        },
+        {
+            id: 1,
+            name: 'Alice',
+            lastMessage: 'Hey, how are you?',
+            numberNewMessages: 2,
+            image: 'https://randomuser.me/api/ports/1',
+        },
+        {
+            id: 2,
+            name: 'Bob',
+            lastMessage: 'See you later!',
+            numberNewMessages: 1,
+            image: 'https://randomuser.me/api/ports/2',
+        },
+        {
+            id: 1,
+            name: 'Alice',
+            lastMessage: 'Hey, how are you?',
+            numberNewMessages: 2,
+            image: 'https://randomuser.me/api/ports/1',
+        },
+        {
+            id: 2,
+            name: 'Bob',
+            lastMessage: 'See you later!',
+            numberNewMessages: 1,
+            image: 'https://randomuser.me/api/ports/2',
+        },
+        {
+            id: 1,
+            name: 'Alice',
+            lastMessage: 'Hey, how are you?',
+            numberNewMessages: 2,
+            image: 'https://randomuser.me/api/ports/1',
+        },
+        {
+            id: 2,
+            name: 'Bob',
+            lastMessage: 'See you later!',
+            numberNewMessages: 1,
+            image: 'https://randomuser.me/api/ports/2',
+        },
     ];
-
 
   return (
     <View style={styles.container}>
@@ -32,7 +115,8 @@ export default function MessagesScreen() {
             }}
         >
             {messages.map((message) => (
-                <View style={styles.messageModalHovered} key={message.id}>
+
+                <View style={styles.messageModalHovered} key={message.id} >
                     <MessageModal profileImage={message.image} senderName={message.name} lastMessage={message.lastMessage} numbrNewMessage={message.numberNewMessages} />
                 </View>
             ))}
