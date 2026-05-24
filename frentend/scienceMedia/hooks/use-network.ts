@@ -1,9 +1,9 @@
-// hooks/use-network.ts
-import { useCallback, useEffect, useRef } from 'react';
+import { useEffect } from 'react';
 import { useNetworkStore } from '../store/network.store';
 import { usersService } from '../services/users.service';
 import type { Connection } from '../types/user.types';
 
+// Données d'exemple affichées si l'API n'est pas disponible
 const exampleSuggestions: Connection[] = [
   {
     id: '1',
@@ -37,7 +37,6 @@ export function useNetwork() {
     isLoading,
     error,
     nextCursor,
-    hasMore,
     setSuggestions,
     appendSuggestions,
     removeSuggestion,
@@ -47,9 +46,8 @@ export function useNetwork() {
     setPagination,
   } = useNetworkStore();
 
-  const isFirstLoadRef = useRef(true);
-
-  const loadSuggestions = useCallback(async (refresh = false) => {
+  // Rafraîchit la liste ou charge la page suivante
+  async function loadSuggestions(refresh = false) {
     if (isLoading) return;
     setLoading(true);
     setError(null);
@@ -61,44 +59,52 @@ export function useNetwork() {
       setPagination(res.nextCursor, res.hasMore);
     } catch (err) {
       setError((err as Error).message);
-      // Fallback to example data
       if (refresh) setSuggestions(exampleSuggestions);
       else appendSuggestions(exampleSuggestions);
     } finally {
       setLoading(false);
     }
-  }, [isLoading, nextCursor, setLoading, setError, setSuggestions, appendSuggestions, setPagination]);
+  }
 
-  const refresh = useCallback(() => loadSuggestions(true), [loadSuggestions]);
-
-  const handleConnect = useCallback(
-    async (userId: string) => {
-      try {
-        await usersService.connectUser(userId);
-        toggleConnect(userId);
-      } catch (err) {
-        setError((err as Error).message);
-      }
-    },
-    [toggleConnect, setError]
-  );
-
-  const handleDismiss = useCallback((userId: string) => {
-    removeSuggestion(userId);
-  }, [removeSuggestion]);
-
-  useEffect(() => {
-    if (isFirstLoadRef.current) {
-      isFirstLoadRef.current = false;
-      loadSuggestions();
+  // Envoie une demande de connexion
+  async function handleConnect(userId: string) {
+    try {
+      await usersService.connectUser(userId);
+      toggleConnect(userId);
+    } catch (err) {
+      setError((err as Error).message);
     }
-  }, []);
+  }
+
+  // Supprime une suggestion de la liste
+  function handleDismiss(userId: string) {
+    removeSuggestion(userId);
+  }
+
+  // Chargement initial au démarrage du composant
+  useEffect(() => {
+    async function loadInitialSuggestions() {
+      setLoading(true);
+      setError(null);
+      try {
+        const res = await usersService.getSuggestions(undefined);
+        setSuggestions(res.data);
+        setPagination(res.nextCursor, res.hasMore);
+      } catch {
+        setSuggestions(exampleSuggestions);
+        setError(null);
+      } finally {
+        setLoading(false);
+      }
+    }
+    loadInitialSuggestions();
+  }, [setError, setSuggestions, setLoading, setPagination]);
 
   return {
     suggestions,
     isLoading,
     error,
-    refresh,
+    refresh: () => loadSuggestions(true),
     handleConnect,
     handleDismiss,
   };

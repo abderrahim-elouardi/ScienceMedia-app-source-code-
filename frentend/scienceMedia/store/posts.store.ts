@@ -11,6 +11,7 @@ interface PostsState {
 
   setFeed: (posts: Post[]) => void;
   appendFeed: (posts: Post[]) => void;
+  prependPost: (post: Post) => void;
   toggleLike: (postId: string) => void;
   setLoading: (v: boolean) => void;
   setError: (msg: string | null) => void;
@@ -25,6 +26,7 @@ export const usePostsStore = create<PostsState>((set) => ({
 
   setFeed: (posts) => set({ feed: posts }),
   appendFeed: (posts) => set((s) => ({ feed: [...s.feed, ...posts] })),
+  prependPost: (post) => set((s) => ({ feed: [post, ...s.feed] })),
 
   toggleLike: (postId) =>
     set((s) => ({

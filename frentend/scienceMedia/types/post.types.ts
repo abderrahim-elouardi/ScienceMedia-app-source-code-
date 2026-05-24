@@ -30,6 +30,8 @@ export interface Post {
   content?: string;
   imageUrl?: string;
   videoUrl?: string;
+  documentUrl?: string;
+  documentName?: string;
   meeting?: MeetingData;
   likesCount: number;
   commentsCount: number;
@@ -45,6 +47,19 @@ export interface PaginatedResponse<T> {
   data: T[];
   nextCursor?: string;
   hasMore: boolean;
+}
+
+export interface CreatePostData {
+  type: PostType;
+  title: string;
+  excerpt: string;
+  content?: string;
+  tags: string[];
+  imageUrl?: string;
+  videoUrl?: string;
+  documentUrl?: string;
+  documentName?: string;
+  meeting?: MeetingData;
 }
 
 // AOUAD ABDELKARIM

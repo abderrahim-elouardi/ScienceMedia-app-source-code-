@@ -28,6 +28,14 @@
     "plugins": [
       "expo-router",
       [
+        "expo-image-picker",
+        {
+          "photosPermission": "ScienceMedia a besoin d'accéder à vos photos pour publier des images.",
+          "cameraPermission": "ScienceMedia a besoin d'accéder à votre caméra pour prendre des photos."
+        }
+      ],
+      "expo-document-picker",
+      [
         "expo-splash-screen",
         {
           "image": "./assets/images/splash-icon.png",

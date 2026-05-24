@@ -1,8 +1,9 @@
-import { useCallback, useEffect, useRef } from 'react';
+import { useEffect } from 'react';
 import { useNotificationsStore } from '../store/notifications.store';
 import { notificationsService } from '../services/notifications.service';
 import type { Notification } from '../types/notification.types';
 
+// Données d'exemple affichées si l'API n'est pas disponible
 const exampleNotifications: Notification[] = [
   {
     id: '1',
@@ -104,77 +105,75 @@ export function useNotifications() {
     setPagination,
   } = useNotificationsStore();
 
-  const isFirstLoadRef = useRef(true);
-
-  const loadNotifications = useCallback(
-    async (refresh = false) => {
-      if (isLoading) return;
-      setLoading(true);
+  // Rafraîchit la liste ou charge la page suivante
+  async function loadNotifications(refresh = false) {
+    if (isLoading) return;
+    setLoading(true);
+    setError(null);
+    try {
+      const cursor = refresh ? undefined : nextCursor;
+      const res = await notificationsService.getNotifications(cursor);
+      if (refresh) setNotifications(res.data);
+      else appendNotifications(res.data);
+      setPagination(res.nextCursor, res.hasMore);
+    } catch {
+      if (refresh) {
+        setNotifications(exampleNotifications);
+        setPagination(undefined, false);
+      }
       setError(null);
-      try {
-        const cursor = refresh ? undefined : nextCursor;
-        const res = await notificationsService.getNotifications(cursor);
-        if (refresh) setNotifications(res.data);
-        else appendNotifications(res.data);
-        setPagination(res.nextCursor, res.hasMore);
-        isFirstLoadRef.current = false;
-      } catch {
-        if (refresh || isFirstLoadRef.current) {
-          setNotifications(exampleNotifications);
-          setPagination(undefined, false);
-        }
-        setError(null);
-      } finally {
-        setLoading(false);
-      }
-    },
-    [
-      isLoading,
-      nextCursor,
-      setLoading,
-      setError,
-      setNotifications,
-      appendNotifications,
-      setPagination,
-    ]
-  );
+    } finally {
+      setLoading(false);
+    }
+  }
 
-  const refresh = useCallback(() => loadNotifications(true), [loadNotifications]);
+  // Marque une notification comme lue
+  async function handleMarkAsRead(notificationId: string) {
+    markNotificationRead(notificationId);
+    try {
+      await notificationsService.markAsRead(notificationId);
+    } catch {
+      setError('Impossible de marquer la notification comme lue.');
+    }
+  }
 
-  const handleMarkAsRead = useCallback(
-    async (notificationId: string) => {
-      markNotificationRead(notificationId);
-      try {
-        await notificationsService.markAsRead(notificationId);
-      } catch {
-        setError('Impossible de marquer la notification comme lue.');
-      }
-    },
-    [markNotificationRead, setError]
-  );
-
-  const handleMarkAllRead = useCallback(async () => {
+  // Marque toutes les notifications comme lues
+  async function handleMarkAllRead() {
     markAllNotificationsRead();
     try {
       await notificationsService.markAllAsRead();
     } catch {
       setError('Impossible de marquer toutes les notifications comme lues.');
     }
-  }, [markAllNotificationsRead, setError]);
+  }
 
+  // Chargement initial au démarrage du composant
   useEffect(() => {
-    loadNotifications(true);
-  }, []);
+    async function loadInitialNotifications() {
+      setLoading(true);
+      setError(null);
+      try {
+        const res = await notificationsService.getNotifications(undefined);
+        setNotifications(res.data);
+        setPagination(res.nextCursor, res.hasMore);
+      } catch {
+        setNotifications(exampleNotifications);
+        setPagination(undefined, false);
+        setError(null);
+      } finally {
+        setLoading(false);
+      }
+    }
+    loadInitialNotifications();
+  }, [setError, setNotifications, setLoading, setPagination]);
 
   return {
     notifications,
     isLoading,
     error,
     hasMore,
-    refresh,
-    loadMore: () => {
-      if (hasMore) loadNotifications(false);
-    },
+    refresh: () => loadNotifications(true),
+    loadMore: () => { if (hasMore) loadNotifications(false); },
     handleMarkAsRead,
     handleMarkAllRead,
   };

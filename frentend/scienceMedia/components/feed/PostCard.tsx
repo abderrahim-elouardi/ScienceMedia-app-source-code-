@@ -1,31 +1,45 @@
-import { memo, useCallback } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Image } from 'react-native';
 import { router } from 'expo-router';
 import { Avatar } from '../ui/Avatar';
 import { Colors } from '../../constants/theme';
 import type { Post, PostType } from '../../types/post.types';
 
-interface PostCardProps {
-  post: Post;
-  onLike: (id: string) => void;
+const TYPE_LABELS: Record<PostType, string> = {
+  text: 'Texte',
+  text_image: 'Article',
+  text_video: 'Vidéo',
+  image: 'Image',
+  video: 'Clip',
+  meeting: 'Réunion',
+};
+
+function formatRelativeTime(value: string) {
+  const date = new Date(value);
+  const diffMs = Date.now() - date.getTime();
+  const diffMinutes = Math.max(1, Math.floor(diffMs / 60000));
+
+  if (diffMinutes < 60) return `${diffMinutes} min`;
+  const diffHours = Math.floor(diffMinutes / 60);
+  if (diffHours < 24) return `${diffHours} h`;
+  return `${Math.floor(diffHours / 24)} j`;
 }
 
-function PostCardComponent({ post, onLike }: PostCardProps) {
-  const relativeTime = formatRelativeTime(post.publishedAt);
-  
-  const handleLike = useCallback(() => {
-    onLike(post.id);
-  }, [post.id, onLike]);
-  
-  const handlePostPress = useCallback(() => {
-    router.push(`/post/${post.id}`);
-  }, [post.id]);
+function formatMeetingDate(value: string) {
+  return new Intl.DateTimeFormat('fr-FR', {
+    weekday: 'short',
+    day: '2-digit',
+    month: 'short',
+    hour: '2-digit',
+    minute: '2-digit',
+  }).format(new Date(value));
+}
 
+export function PostCard({ post, onLike }: { post: Post; onLike: (id: string) => void }) {
   return (
     <TouchableOpacity
       style={styles.card}
       activeOpacity={0.92}
-      onPress={handlePostPress}
+      onPress={() => router.push(`/post/${post.id}`)}
     >
       {/* En-tête auteur */}
       <View style={styles.header}>
@@ -33,10 +47,12 @@ function PostCardComponent({ post, onLike }: PostCardProps) {
         <View style={styles.authorInfo}>
           <Text style={styles.authorName}>{post.author.displayName}</Text>
           <Text style={styles.authorMeta}>
-            {post.author.specialty} · {relativeTime}
+            {post.author.specialty} · {formatRelativeTime(post.publishedAt)}
           </Text>
         </View>
-        <TypeBadge type={post.type} />
+        <View style={styles.typeBadge}>
+          <Text style={styles.typeBadgeText}>{TYPE_LABELS[post.type]}</Text>
+        </View>
       </View>
 
       {/* Contenu */}
@@ -44,11 +60,19 @@ function PostCardComponent({ post, onLike }: PostCardProps) {
       <Text style={styles.excerpt} numberOfLines={3}>{post.excerpt}</Text>
 
       {post.imageUrl ? (
-        <Image 
-          source={{ uri: post.imageUrl + '?w=500&h=220&fit=crop' }} 
+        <Image
+          source={{ uri: post.imageUrl + '?w=500&h=220&fit=crop' }}
           style={styles.previewImage}
-          progressiveRenderingEnabled={true}
         />
+      ) : null}
+
+      {post.documentUrl ? (
+        <View style={styles.documentCard}>
+          <Text style={styles.documentIcon}>📄</Text>
+          <Text style={styles.documentName} numberOfLines={1}>
+            {post.documentName ?? 'Document PDF'}
+          </Text>
+        </View>
       ) : null}
 
       {post.meeting ? (
@@ -77,76 +101,25 @@ function PostCardComponent({ post, onLike }: PostCardProps) {
 
       {/* Actions */}
       <View style={styles.actions}>
-        <TouchableOpacity style={styles.action} onPress={handleLike}>
+        <TouchableOpacity style={styles.action} onPress={() => onLike(post.id)}>
           <Text style={[styles.actionIcon, post.isLiked && styles.liked]}>
             {post.isLiked ? '♥' : '♡'}
           </Text>
           <Text style={styles.actionCount}>{post.likesCount}</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity
-          style={styles.action}
-          onPress={handlePostPress}
-        >
+        <TouchableOpacity style={styles.action} onPress={() => router.push(`/post/${post.id}`)}>
           <Text style={styles.actionIcon}>💬</Text>
           <Text style={styles.actionCount}>{post.commentsCount}</Text>
         </TouchableOpacity>
 
-        {post.readTimeMinutes && (
+        {post.readTimeMinutes ? (
           <Text style={styles.readTime}>{post.readTimeMinutes} min</Text>
-        )}
+        ) : null}
       </View>
     </TouchableOpacity>
   );
 }
-
-export const PostCard = memo(PostCardComponent, (prevProps, nextProps) => {
-  return (
-    prevProps.post.id === nextProps.post.id &&
-    prevProps.post.isLiked === nextProps.post.isLiked &&
-    prevProps.post.likesCount === nextProps.post.likesCount &&
-    prevProps.onLike === nextProps.onLike
-  );
-});
-
-function TypeBadge({ type }: { type: PostType }) {
-  return (
-    <View style={styles.typeBadge}>
-      <Text style={styles.typeBadgeText}>{TYPE_LABELS[type]}</Text>
-    </View>
-  );
-}
-
-function formatRelativeTime(value: string) {
-  const date = new Date(value);
-  const diffMs = Date.now() - date.getTime();
-  const diffMinutes = Math.max(1, Math.floor(diffMs / 60000));
-
-  if (diffMinutes < 60) return `${diffMinutes} min`;
-  const diffHours = Math.floor(diffMinutes / 60);
-  if (diffHours < 24) return `${diffHours} h`;
-  const diffDays = Math.floor(diffHours / 24);
-  return `${diffDays} j`;
-}
-
-function formatMeetingDate(value: string) {
-  return new Intl.DateTimeFormat('fr-FR', {
-    weekday: 'short',
-    day: '2-digit',
-    month: 'short',
-    hour: '2-digit',
-    minute: '2-digit',
-  }).format(new Date(value));
-}
-
-const TYPE_LABELS: Record<PostType, string> = {
-  text: 'Texte',
-  text_image: 'Article',
-  text_video: 'Vidéo',
-  image: 'Image',
-  video: 'Clip',
-  meeting: 'Réunion',
-};
 
 const styles = StyleSheet.create({
   card: {
@@ -277,6 +250,26 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#667085',
     fontWeight: '600',
+  },
+  documentCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginTop: 14,
+    padding: 12,
+    borderRadius: 12,
+    backgroundColor: '#FFF7ED',
+    borderWidth: 1,
+    borderColor: '#FED7AA',
+  },
+  documentIcon: {
+    fontSize: 20,
+  },
+  documentName: {
+    flex: 1,
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#92400E',
   },
 });
 

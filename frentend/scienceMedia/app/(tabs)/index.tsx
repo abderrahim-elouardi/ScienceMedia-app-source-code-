@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useCallback, useEffect } from 'react';
+import { useState } from 'react';
 import {
   View,
   Text,
@@ -7,67 +7,39 @@ import {
   FlatList,
   TouchableOpacity,
   StyleSheet,
-  SafeAreaView,
   StatusBar,
   RefreshControl,
   ActivityIndicator,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { router } from 'expo-router';
 import { PostCard } from '../../components/feed/PostCard';
 import { useFeed } from '../../hooks/use-posts';
-import type { Post } from '../../types/post.types';
-
-// ─── Debounce helper ──────────────────────────────────────────────────────
-
-function useDebounce(value: string, delayMs: number) {
-  const [debouncedValue, setDebouncedValue] = useState(value);
-  
-  useEffect(() => {
-    const handler = setTimeout(() => {
-      setDebouncedValue(value);
-    }, delayMs);
-    
-    return () => clearTimeout(handler);
-  }, [value, delayMs]);
-  
-  return debouncedValue;
-}
-
-// ─── Composant principal App ──────────────────────────────────────────────────
+import type { Post, PostType } from '../../types/post.types';
 
 export default function App(): React.JSX.Element {
   const [searchQuery, setSearchQuery] = useState<string>('');
-  const debouncedSearchQuery = useDebounce(searchQuery, 300);
   const { feed, isLoading, error, refresh, handleLike } = useFeed();
 
-  const filteredFeed = useMemo(() => {
-    const query = debouncedSearchQuery.trim().toLowerCase();
-    if (!query) return feed;
-
-    return feed.filter((post) => {
-      return [
-        post.title,
-        post.excerpt,
-        post.author.displayName,
-        post.author.specialty,
-        ...(post.tags ?? []),
-      ]
-        .join(' ')
-        .toLowerCase()
-        .includes(query);
-    });
-  }, [feed, debouncedSearchQuery]);
+  // Filtre les posts selon la recherche saisie
+  const query = searchQuery.trim().toLowerCase();
+  const filteredFeed = query
+    ? feed.filter((post) =>
+        [post.title, post.excerpt, post.author.displayName, post.author.specialty, ...post.tags]
+          .join(' ')
+          .toLowerCase()
+          .includes(query)
+      )
+    : feed;
 
   const showInitialLoader = isLoading && feed.length === 0;
 
-  const renderPostCard = useCallback(
-    ({ item }: { item: Post }) => (
-      <PostCard post={item} onLike={handleLike} />
-    ),
-    [handleLike]
-  );
+  function renderPostCard({ item }: { item: Post }) {
+    return <PostCard post={item} onLike={handleLike} />;
+  }
 
-  const renderListHeader = useCallback(
-    () => (
+  function renderListHeader() {
+    return (
       <View>
         <View style={styles.topBar}>
           <Image
@@ -92,19 +64,27 @@ export default function App(): React.JSX.Element {
               source={{ uri: 'https://randomuser.me/api/portraits/men/75.jpg' }}
               style={styles.createAvatar}
             />
-            <TouchableOpacity style={styles.createInput} activeOpacity={0.85}>
+            <TouchableOpacity
+              style={styles.createInput}
+              activeOpacity={0.85}
+              onPress={() => router.push('/create-post')}
+            >
               <Text style={styles.createPlaceholder}>Démarrer un post</Text>
             </TouchableOpacity>
           </View>
 
           <View style={styles.createActions}>
-            {[
-              { icon: '🖼️', label: 'Photo' },
-              { icon: '🎥', label: 'Vidéo' },
-              { icon: '📄', label: 'Document' },
-              { icon: '📅', label: 'Réunion' },
-            ].map((btn) => (
-              <TouchableOpacity key={btn.label} style={styles.createBtn}>
+            {([
+              { icon: '🖼️', label: 'Photo',    type: 'text_image' as PostType },
+              { icon: '🎥', label: 'Vidéo',    type: 'text_video' as PostType },
+              { icon: '📄', label: 'Document', type: 'text'       as PostType },
+              { icon: '📅', label: 'Réunion',  type: 'meeting'    as PostType },
+            ]).map((btn) => (
+              <TouchableOpacity
+                key={btn.label}
+                style={styles.createBtn}
+                onPress={() => router.push({ pathname: '/create-post', params: { type: btn.type } })}
+              >
                 <Text style={styles.createBtnIcon}>{btn.icon}</Text>
                 <Text style={styles.createBtnLabel}>{btn.label}</Text>
               </TouchableOpacity>
@@ -114,29 +94,27 @@ export default function App(): React.JSX.Element {
 
         {error ? <Text style={styles.helperText}>{error}</Text> : null}
       </View>
-    ),
-    [searchQuery, error]
-  );
+    );
+  }
 
-  const renderListEmpty = useCallback(
-    () =>
-      showInitialLoader ? (
+  function renderListEmpty() {
+    if (showInitialLoader) {
+      return (
         <View style={styles.stateCard}>
           <ActivityIndicator color="#0a7ea4" />
           <Text style={styles.stateTitle}>Chargement du fil...</Text>
         </View>
-      ) : (
-        <View style={styles.stateCard}>
-          <Text style={styles.stateTitle}>Aucun post trouvé</Text>
-          <Text style={styles.stateSubtitle}>
-            Essayez une autre recherche ou rafraîchissez le fil.
-          </Text>
-        </View>
-      ),
-    [showInitialLoader]
-  );
-
-  const keyExtractor = useCallback((item: Post) => item.id, []);
+      );
+    }
+    return (
+      <View style={styles.stateCard}>
+        <Text style={styles.stateTitle}>Aucun post trouvé</Text>
+        <Text style={styles.stateSubtitle}>
+          Essayez une autre recherche ou rafraîchissez le fil.
+        </Text>
+      </View>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.container}>
@@ -144,25 +122,17 @@ export default function App(): React.JSX.Element {
 
       <FlatList
         data={filteredFeed}
-        keyExtractor={keyExtractor}
+        keyExtractor={(item) => item.id}
         renderItem={renderPostCard}
         contentContainerStyle={styles.feedContent}
         ListHeaderComponent={renderListHeader}
         ListEmptyComponent={renderListEmpty}
         refreshControl={<RefreshControl refreshing={isLoading} onRefresh={refresh} />}
         showsVerticalScrollIndicator={false}
-        maxToRenderPerBatch={8}
-        updateCellsBatchingPeriod={50}
-        initialNumToRender={8}
-        removeClippedSubviews={true}
-        scrollEventThrottle={16}
-        windowSize={21}
       />
     </SafeAreaView>
   );
 }
-
-// ─── Styles ───────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
   container: {

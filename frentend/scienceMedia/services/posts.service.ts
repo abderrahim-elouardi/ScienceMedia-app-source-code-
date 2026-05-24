@@ -1,6 +1,6 @@
 // services/posts.service.ts
 import { apiClient } from './api.client';
-import type { Post, PaginatedResponse } from '../types/post.types';
+import type { Post, PaginatedResponse, CreatePostData } from '../types/post.types';
 
 export const postsService = {
   getFeed: (cursor?: string) =>
@@ -19,6 +19,9 @@ export const postsService = {
 
   getPostById: (postId: string) =>
     apiClient.get<Post>(`/posts/${postId}`),
+
+  createPost: (data: CreatePostData) =>
+    apiClient.post<Post>('/posts', data),
 };
 
 // AOUAD ABDELKARIM
