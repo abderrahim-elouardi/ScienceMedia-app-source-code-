@@ -1,9 +1,8 @@
-import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
+import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
-import { useColorScheme } from '@/hooks/use-color-scheme';
 import { Colors } from '@/constants/theme';
+import { useColorScheme } from '@/hooks/use-color-scheme';
 
 type TabItem = {
   key: string;
@@ -17,7 +16,8 @@ const TABS: TabItem[] = [
   { key: 'network', icon: '👥', label: 'Réseau' },
   { key: 'messages', icon: '💬', label: 'Messages' },
   { key: 'notifications', icon: '🔔', label: 'Notifs', badge: true },
-  { key: 'settings', icon: '⚙️', label: 'Paramètres' },
+  { key: 'profile', icon: '⚙️', label: 'profile' },
+  { key: 'settings', icon: '⚙️', label: 'Paramètres' }
 ];
 
 export default function CustomTabBar({ state, descriptors, navigation }: BottomTabBarProps) {

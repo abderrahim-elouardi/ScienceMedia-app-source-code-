@@ -124,7 +124,7 @@ public class AuthenticationService {
             int resetNumber = ThreadLocalRandom.current().nextInt(10000, 100000);
             content = content.formatted(user.getUsername(), resetNumber);
             try{
-                sendEmailService.sendEmail(email,"Votre code de réinitialisation de mot de passe - Science Media",content);
+//                sendEmailService.sendEmail(email,"Votre code de réinitialisation de mot de passe - Science Media",content);
             } catch (RuntimeException e) {
                 return HttpStatus.INTERNAL_SERVER_ERROR;
             }

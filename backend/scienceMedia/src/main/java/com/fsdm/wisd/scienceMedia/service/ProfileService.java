@@ -1,7 +1,9 @@
 package com.fsdm.wisd.scienceMedia.service;
 
+import com.fsdm.wisd.scienceMedia.dto.ProfileDetailResponse;
 import com.fsdm.wisd.scienceMedia.entite.Image;
 import com.fsdm.wisd.scienceMedia.entite.Userr;
+import com.fsdm.wisd.scienceMedia.mapper.ProfileDetailsMapper;
 import com.fsdm.wisd.scienceMedia.repositories.ImageRepository;
 import com.fsdm.wisd.scienceMedia.repositories.UserRepository;
 import org.springframework.http.HttpStatus;
@@ -9,12 +11,15 @@ import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
+import javax.swing.text.html.Option;
 import java.io.IOException;
+import java.util.Optional;
 
 @Service
 public class ProfileService {
     private final UserRepository userRepository;
     private final ImageRepository imageRepository;
+
     public ProfileService(UserRepository userRepository , ImageRepository imageRepository) {
         this.userRepository = userRepository;
         this.imageRepository = imageRepository;
@@ -33,5 +38,37 @@ public class ProfileService {
         }
 
 
+    }
+
+    public Long getNumberOfFollowers(Authentication authentication) {
+        Optional<Userr> optUser =userRepository.findByEmail(authentication.getName());
+        if(optUser.isPresent()){
+            Userr user= optUser.get();
+            return user.getNumberOfFollowers();
+        }
+        return null;
+    }
+//
+//    public Long getNumberOfFollowing(Authentication authentication) {
+//        Optional<Userr> optUser =userRepository.findByEmail(authentication.getName());
+//        if(optUser.isPresent()){
+//            Userr user= optUser.get();
+//            return user.getNumberOfFollowing();
+//        }
+//        return null;
+//    }
+//
+//    public Long getNumberOfPosts(Authentication authentication) {
+//        return userRepository.findByEmail(authentication.getName()).get().getNumberOfPosts();
+//    }
+//
+//    public Image getProfileImage(Authentication authentication) {
+//        Userr user = userRepository.findByEmail(authentication.getName()).get();
+//        return imageRepository.findImageByUser(user).get();
+//    }
+
+    public ProfileDetailResponse getProfileDetails(Authentication authentication) {
+        Optional<Userr> optUser = userRepository.findByEmail(authentication.getName());
+        return optUser.map(ProfileDetailsMapper::toProfileDetailResponse).orElse(null);
     }
 }

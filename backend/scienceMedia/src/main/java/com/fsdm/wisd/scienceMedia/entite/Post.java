@@ -46,6 +46,7 @@ public class Post {
     @JoinColumn(name = "meeting_id")
     private Meeting meeting;
 
+
     @ElementCollection
     @CollectionTable(name = "post_tags", joinColumns = @JoinColumn(name = "post_id"))
     @Column(name = "tag")

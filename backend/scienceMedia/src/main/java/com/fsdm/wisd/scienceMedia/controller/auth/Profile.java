@@ -2,6 +2,7 @@ package com.fsdm.wisd.scienceMedia.controller.auth;
 
 
 import com.fsdm.wisd.scienceMedia.dto.AuthResponse;
+import com.fsdm.wisd.scienceMedia.dto.ProfileDetailResponse;
 import com.fsdm.wisd.scienceMedia.dto.RegisterRequest;
 import com.fsdm.wisd.scienceMedia.entite.Image;
 import com.fsdm.wisd.scienceMedia.service.AuthenticationService;
@@ -48,6 +49,15 @@ public class Profile {
         return profileService.changeProfileImage(file,authentication);
     }
 
+    @GetMapping("/number_followers")
+    public Long getNumberOfFollowers(Authentication authentication){
+        return profileService.getNumberOfFollowers(authentication);
+    }
 
+
+    @GetMapping("/profile_details")
+    public ProfileDetailResponse getProfileDetails(Authentication authentication){
+        return profileService.getProfileDetails(authentication);
+    }
 
 }

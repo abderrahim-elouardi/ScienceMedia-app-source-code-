@@ -32,6 +32,7 @@ public class Userr {
 
     private Long numberOfFollowers;
     private Long numberOfFollowing;
+    private Long numberOfPosts;
 
 
     @ManyToMany(cascade = {CascadeType.PERSIST, CascadeType.MERGE})
@@ -45,4 +46,6 @@ public class Userr {
     @ManyToMany(mappedBy = "following")
     private List<Userr> followers = new ArrayList<>();
 
+    @OneToMany(mappedBy = "author", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<Post> posts = new ArrayList<>();
 }

@@ -1,9 +1,12 @@
 package com.fsdm.wisd.scienceMedia.entite;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import lombok.ToString;
 
 import java.time.LocalDateTime;
 
@@ -26,8 +29,9 @@ public class Image {
     private String imageType;
     private LocalDateTime createdAt = LocalDateTime.now();
 
-    // Relation bidirectionnelle : permet de retrouver le post depuis l'image si besoin
     @OneToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "post_id") // Clé étrangère dans la table post_images
+    @JoinColumn(name = "post_id")
+    @ToString.Exclude
+    @JsonIgnore
     private Userr user;
 }

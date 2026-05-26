@@ -49,12 +49,12 @@ const authenticate = async (username: string, password: string): Promise<AuthRes
 };
 
 // 2. Récupérer le token
-const getToken = async (): Promise<string | null> => {
+const getToken =  (): string|null => {
     return _token;
 };
 
 // 3. Récupérer le profil de l'utilisateur connecté
-const getUser = async (): Promise<User | null> => {
+const getUser =  (): User | null => {
     return _user;
 };
 
