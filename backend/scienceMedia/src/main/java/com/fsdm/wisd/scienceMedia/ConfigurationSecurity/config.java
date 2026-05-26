@@ -53,6 +53,8 @@ public class config {
         http.authorizeHttpRequests(au -> au
                 .requestMatchers("/auth/login").permitAll()
                 .requestMatchers("/profile/register").permitAll()
+                .requestMatchers("/profile/change-password-with-email").permitAll()
+
 //                .requestMatchers("/addClient").permitAll()
 //                .requestMatchers("/getCommentaire").permitAll()
 //                .requestMatchers("/prompt/**").permitAll()

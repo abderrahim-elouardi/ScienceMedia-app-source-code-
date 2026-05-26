@@ -1,28 +1,33 @@
 import { authenticate, getToken, getUser } from '@/services/auth.service';
 import { User } from '@/types/Auth.Type';
-import { Link } from 'expo-router';
+import { Link, router } from 'expo-router';
 import { useState } from 'react';
+
 import {
-    Image,
-    KeyboardAvoidingView,
-    Platform,
-    Pressable,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    View
+  Image,
+  KeyboardAvoidingView,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View
 } from 'react-native';
 
 export default function MessagesScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [authErrorMessage , setAuthErrorMessage] = useState('')
 
   const login = async () => {
     const result = await authenticate(email, password);
     const user:User | null = await getUser();
     const token = await getToken();
-    alert(`Bienvenue ${user?.username} ! Votre token : ${token}`);
+    if(!token){
+      setAuthErrorMessage("Email ou mot de passe est incorrect")
+    }
+    router.replace('/');
   };
 
   const loginWithGoogle = () => {
@@ -72,6 +77,11 @@ export default function MessagesScreen() {
               </Pressable>
             </Link>
           </View>
+
+          {/* Error Message */}
+          {authErrorMessage !== '' ? (
+            <Text style={styles.errorText}>{authErrorMessage}</Text>
+          ) : null}
 
           {/* Buttons */}
           <Pressable 
@@ -161,6 +171,13 @@ const styles = StyleSheet.create({
     color: '#007bff',
     fontWeight: '600',
     fontSize: 14,
+  },
+  errorText: {
+    color: '#dc3545', // Couleur rouge pour l'erreur
+    fontSize: 14,
+    fontWeight: '600',
+    textAlign: 'center',
+    marginBottom: 16, // Espace avant le bouton de login
   },
   loginButton: {
     backgroundColor: '#007bff',

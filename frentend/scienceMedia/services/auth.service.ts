@@ -1,5 +1,6 @@
 import { AuthResponse, User } from "@/types/Auth.Type";
 import { BASE_URL } from "./config";
+
 // Décommente cette ligne si tu utilises AsyncStorage plus tard :
 // import AsyncStorage from '@react-native-async-storage/async-storage';
 
@@ -24,27 +25,26 @@ const authenticate = async (username: string, password: string): Promise<AuthRes
             const errorData = responseText ? JSON.parse(responseText) : null;
             throw new Error(errorData?.message || `Erreur ${response.status}`);
         }
+        else{
+            const data = responseText ? (JSON.parse(responseText) as AuthResponse) : null;
+            if (!data) {
+                throw new Error("Le serveur a renvoyé une réponse vide.");
+            }
 
-        const data = responseText ? (JSON.parse(responseText) as AuthResponse) : null;
+            // --- SAUVEGARDE EN CACHE ---
+            _token = data.acces_token;
+            _user = data.user;
 
-        if (!data) {
-            throw new Error("Le serveur a renvoyé une réponse vide.");
-        }
+            // Si tu utilises AsyncStorage, décommente ces lignes :
+            // await AsyncStorage.setItem('@auth_token', data.acces_token);
+            // await AsyncStorage.setItem('@auth_user', JSON.stringify(data.user));
 
-        // --- SAUVEGARDE EN CACHE ---
-        _token = data.acces_token;
-        _user = data.user;
-
-        // Si tu utilises AsyncStorage, décommente ces lignes :
-        // await AsyncStorage.setItem('@auth_token', data.acces_token);
-        // await AsyncStorage.setItem('@auth_user', JSON.stringify(data.user));
-
-        // ⚠️ CORRECTION CRITIQUE : Il faut absolument retourner les données !
-        return data; 
-
+            // ⚠️ CORRECTION CRITIQUE : Il faut absolument retourner les données !
+            return data; 
+        }        
     } catch (error: any) {
-        console.error("Erreur auth.service :", error.message);
-        throw error;
+        _token = null
+        _user = null
     }
 };
 

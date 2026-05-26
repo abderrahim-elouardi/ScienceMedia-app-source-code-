@@ -24,14 +24,22 @@ public class ScienceMediaApplication {
 		return args -> {
 			// Votre logique d'initialisation ici
 			System.out.println("--- Initialisation de la base H2 ---");
-			Userr user = new Userr();
-			user.setUsername("elouardi");
-			user.setEmail("elouardi@gmail.com");
-			user.setPassword(passwordEncoder.encode("abdo123"));
-			user.setBio("hamdolilah");
-			user.setTitle("data scientist");
-			user.setProfileImage(null);
-			repository.save(user);
+			Userr user1 = new Userr();
+			user1.setUsername("elouardi");
+			user1.setEmail("elouardi@gmail.com");
+			user1.setPassword(passwordEncoder.encode("abdo123"));
+			user1.setBio("hamdolilah");
+			user1.setTitle("data scientist");
+			user1.setProfileImage(null);
+			repository.save(user1);
+			Userr user2 = new Userr();
+			user2.setUsername("elouardi");
+			user2.setEmail("elouardiabderrahim06@gmail.com");
+			user2.setPassword(passwordEncoder.encode("abdo123"));
+			user2.setBio("hamdolilah");
+			user2.setTitle("data scientist");
+			user2.setProfileImage(null);
+			repository.save(user2);
 
 			System.out.println("--- Données insérées avec succès ! ---");
 		};

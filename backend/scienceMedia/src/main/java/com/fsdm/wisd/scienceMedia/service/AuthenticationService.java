@@ -23,6 +23,8 @@ import java.time.temporal.ChronoUnit;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Random;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.stream.Collectors;
 
 @Service
@@ -33,16 +35,18 @@ public class AuthenticationService {
     private final AuthenticationManager authenticationManager;
     private UserRepository userRepository;
     private PasswordEncoder passwordEncoder;
+    private SendEmailService sendEmailService;
 
     @Value("${jwt.timeExpairation}")
     private int timeExpairation;
 
-    public AuthenticationService(JwtEncoder jwtEncoder, JwtDecoder jwtDecoder, AuthenticationManager authenticationManager, UserRepository userRepository , PasswordEncoder passwordEncoder) {
+    public AuthenticationService(JwtEncoder jwtEncoder, JwtDecoder jwtDecoder, AuthenticationManager authenticationManager, UserRepository userRepository , PasswordEncoder passwordEncoder, SendEmailService sendEmailService) {
         this.jwtEncoder = jwtEncoder;
         this.jwtDecoder = jwtDecoder;
         this.authenticationManager = authenticationManager;
         this.userRepository=userRepository;
         this.passwordEncoder = passwordEncoder;
+        this.sendEmailService = sendEmailService;
     }
 
     public ResponseEntity<AuthResponse> login(String username, String password) {
@@ -101,5 +105,31 @@ public class AuthenticationService {
         }
 
 
+    }
+
+    public HttpStatus resetPasswordWithEmail(String email) {
+        String content = """
+                Bonjour %s,
+                
+                Nous avons reçu une demande de réinitialisation de mot de passe pour votre compte Science Media.
+                
+                Voici votre code de validation à usage unique :
+                
+                [%d]
+                Ce code est valide pendant 15 minutes. Ne le partagez jamais avec personne.
+                """;
+        Optional<Userr> optUser = userRepository.findByEmail(email);
+        if(optUser.isPresent()){
+            Userr user = optUser.get();
+            int resetNumber = ThreadLocalRandom.current().nextInt(10000, 100000);
+            content = content.formatted(user.getUsername(), resetNumber);
+            try{
+                sendEmailService.sendEmail(email,"Votre code de réinitialisation de mot de passe - Science Media",content);
+            } catch (RuntimeException e) {
+                return HttpStatus.INTERNAL_SERVER_ERROR;
+            }
+            return HttpStatus.OK;
+        }
+        return HttpStatus.UNAUTHORIZED;
     }
 }

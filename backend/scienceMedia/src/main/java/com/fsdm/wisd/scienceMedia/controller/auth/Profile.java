@@ -30,7 +30,10 @@ public class Profile {
     public HttpStatus resetPassword(Authentication authentication, @RequestParam String newPassword){
         return authenticationService.resetPassword(authentication , newPassword);
     }
-
+    @PutMapping("/change-password-with-email")
+    public HttpStatus resetPasswordWithEmail(@RequestParam String email){
+        return authenticationService.resetPasswordWithEmail(email);
+    }
     @PostMapping("/register")
     public ResponseEntity<AuthResponse> register(@RequestBody RegisterRequest profile){
         if (authenticationService.register(profile)){
