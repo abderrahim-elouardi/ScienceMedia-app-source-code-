@@ -6,6 +6,9 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.util.ArrayList;
+import java.util.List;
+
 @Entity
 @NoArgsConstructor
 @AllArgsConstructor
@@ -27,5 +30,19 @@ public class Userr {
 
     private Role role;
 
+    private Long numberOfFollowers;
+    private Long numberOfFollowing;
+
+
+    @ManyToMany(cascade = {CascadeType.PERSIST, CascadeType.MERGE})
+    @JoinTable(
+            name = "user_relations",
+            joinColumns = @JoinColumn(name = "user_id"),
+            inverseJoinColumns = @JoinColumn(name = "follower_id")
+    )
+    private List<Userr> following = new ArrayList<Userr>();
+
+    @ManyToMany(mappedBy = "following")
+    private List<Userr> followers = new ArrayList<>();
 
 }
