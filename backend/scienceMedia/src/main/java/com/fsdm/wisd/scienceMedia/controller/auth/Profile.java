@@ -2,6 +2,7 @@ package com.fsdm.wisd.scienceMedia.controller.auth;
 
 
 import com.fsdm.wisd.scienceMedia.dto.AuthResponse;
+import com.fsdm.wisd.scienceMedia.dto.EditProfileRequest;
 import com.fsdm.wisd.scienceMedia.dto.ProfileDetailResponse;
 import com.fsdm.wisd.scienceMedia.dto.RegisterRequest;
 import com.fsdm.wisd.scienceMedia.entite.Image;
@@ -58,6 +59,11 @@ public class Profile {
     @GetMapping("/profile_details")
     public ProfileDetailResponse getProfileDetails(Authentication authentication){
         return profileService.getProfileDetails(authentication);
+    }
+
+    @PutMapping("editProfile")
+    public HttpStatus editeProfile(@RequestBody EditProfileRequest editeProfileRequest,Authentication authentication) throws IOException {
+        return profileService.editeProfile(editeProfileRequest,authentication);
     }
 
 }
