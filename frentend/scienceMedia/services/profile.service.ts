@@ -12,8 +12,8 @@ export const profilePosts = [
   { id: '5', imageUrl: 'https://picsum.photos/id/50/400/400', title: 'Post 5' },
   { id: '6', imageUrl: 'https://picsum.photos/id/60/400/400', title: 'Post 6' },
 ];
-let _profileDetailsState:ProfileStatsResponse|null =null 
-export const getProfileDetailsState = async ()=>{
+// let _profileDetailsState:ProfileStatsResponse|null =null 
+export const getProfileDetailsState = async ():Promise<ProfileStatsResponse | null>=>{
   try {
     const token = getToken(); 
 
@@ -30,14 +30,35 @@ export const getProfileDetailsState = async ()=>{
     }
 
     const data = await response.json() as ProfileStatsResponse; 
-    _profileDetailsState = data
+    return data
     
   } catch (error) {
     console.error(error);
+    return null
   }
 };
 
 
-export const getReturnValueProfileDetailsState = () => {
-    return _profileDetailsState;
-};
+// export const getReturnValueProfileDetailsState = () => {
+//     alert("geting user details ")
+//     return _profileDetailsState;
+// };
+
+export const editeProfile = async (newProfileState:any)=>{
+    const token = getToken(); 
+
+    const response = await fetch(BASE_PROFILE_URL + "editProfile", {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}` 
+      },
+      body:JSON.stringify(newProfileState)
+    });
+    console.log("request was sent")
+    if (!response.ok) {
+      throw new Error('Erreur lors de la modification du profil');
+    }    
+    return getProfileDetailsState()
+
+  }

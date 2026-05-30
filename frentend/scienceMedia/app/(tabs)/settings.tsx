@@ -1,13 +1,13 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import {
-    Image,
-    SafeAreaView,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View
+  Image,
+  SafeAreaView,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View
 } from 'react-native';
 
 export default function SettingsScreen() {
@@ -48,7 +48,7 @@ export default function SettingsScreen() {
           <Text style={styles.userName}>{user.name}</Text>
           <Text style={styles.userEmail}>{user.email}</Text>
           
-          <TouchableOpacity style={styles.editButton} onPress={()=>{router.push('/(tabs)/editProfileScreen')}}>
+          <TouchableOpacity style={styles.editButton} onPress={()=>{router.push("/editeProfile")}}>
             <Text style={styles.editButtonText}>Modifier le profil</Text>
           </TouchableOpacity>
         </View>

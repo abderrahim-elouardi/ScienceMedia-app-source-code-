@@ -1,39 +1,55 @@
 import { getUser } from "@/services/auth.service";
-import { getReturnValueProfileDetailsState } from '@/services/profile.service';
+import { editeProfile, getProfileDetailsState } from '@/services/profile.service';
+import { ProfileStatsResponse } from "@/types/profileResponse.type";
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { useState } from 'react';
 import {
-    Alert,
-    Image,
-    KeyboardAvoidingView,
-    Platform,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View
+  Alert,
+  Image,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View
 } from 'react-native';
+
+// Interface calquée sur votre entité Image Java
+interface ImagePayload {
+  content?: string;     // Contiendra le nom du fichier d'origine
+  imageData: string;    // Base64 nettoyé transmis au byte[]
+  imageType: string;    // Type MIME
+}
 
 export default function EditProfileScreen() {
   // Récupération des données actuelles pour initialiser les champs
   const currentProfile = getUser();
-  const currentStats = getReturnValueProfileDetailsState();
-
-  const initialImageUri = currentStats?.profileImage 
-    ? `data:${currentStats.profileImage.imageType};base64,${currentStats.profileImage.imageData}`
-    : undefined;
+  const initialImageUri =""
 
   // États locaux du formulaire
   const [username, setUsername] = useState(currentProfile?.username || '');
   const [title, setTitle] = useState(currentProfile?.title || '');
   const [bio, setBio] = useState(currentProfile?.bio || '');
   
-  // Contient l'URI locale ou la string Base64 finale pour l'affichage
+  // Contient l'URI locale ou la string Base64 initiale pour l'affichage
   const [imageUri, setImageUri] = useState<string | undefined>(initialImageUri);
-  // Pour stocker l'objet image traité (imageData et imageType) prêt pour le backend
-  const [updatedImage, setUpdatedImage] = useState<{ imageData: string; imageType: string } | null>(null);
+  getProfileDetailsState().then((stats: ProfileStatsResponse | null) => {
+    if (stats) {
+      const initialImageUri = stats.profileImage 
+    ? `data:${stats.profileImage.imageType};base64,${stats.profileImage.imageData}`
+    : undefined;
+  
+    } else {
+      console.log("Impossible de charger les statistiques");
+    }
+  });
+
+
+  // Pour stocker l'objet image traité, prêt pour le backend
+  const [updatedImage, setUpdatedImage] = useState<ImagePayload | null>(null);
 
   // Fonction pour ouvrir la galerie et traiter l'image sélectionnée
   const pickImage = async () => {
@@ -47,26 +63,29 @@ export default function EditProfileScreen() {
 
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true, // Permet de recadrer l'image en carré (parfait pour un avatar)
+      allowsEditing: true, // Permet de recadrer l'image en carré
       aspect: [1, 1],
-      quality: 0.7, // Compresse légèrement pour économiser la bande passante du serveur
-      base64: true, // Demande explicitement le format Base64 à Expo
+      quality: 0.7, // Compresse légèrement pour le serveur
+      base64: true, // Demande explicitement le format Base64
     });
 
     if (!result.canceled && result.assets[0]) {
       const asset = result.assets[0];
       
-      // Mise à jour de l'affichage local immediat
+      // Mise à jour de l'affichage local immédiat
       setImageUri(asset.uri);
 
       // Extraction du type MIME (ex: image/png)
-      // Extension fallback si non détectée
       const fileExtension = asset.uri.split('.').pop();
       const mimeType = asset.mimeType || `image/${fileExtension === 'jpg' ? 'jpeg' : fileExtension}`;
 
-      // Enregistrement des données prêtes à être envoyées à ton entité Java
+      // Récupération du nom d'origine du fichier (fallback si non défini)
+      const fileName = asset.fileName || `profile_${Date.now()}.${fileExtension}`;
+
+      // Enregistrement des données prêtes à être envoyées à l'entité Java
       if (asset.base64) {
         setUpdatedImage({
+          content: fileName, // Stockage du nom d'origine dans la propriété 'content'
           imageData: asset.base64,
           imageType: mimeType
         });
@@ -80,15 +99,17 @@ export default function EditProfileScreen() {
       username,
       title,
       bio,
-      profileImage: updatedImage // Contient null si inchangé, ou { imageData, imageType }
+      newProfileImage: updatedImage // Contient null si inchangé, ou l'objet ImagePayload
     };
 
     console.log("Données envoyées au service de mise à jour :", payload);
     
     try {
-      // Insertion de ton appel API ici (ex: updateProfile(payload))
+      // Ajout de l'await pour que le bloc try/catch intercepte correctement les erreurs de la requête asynchrone
+      await editeProfile(payload);
       Alert.alert("Succès", "Profil mis à jour avec succès !");
     } catch (error) {
+      console.error(error);
       Alert.alert("Erreur", "Une erreur est survenue lors de l'enregistrement.");
     }
   };

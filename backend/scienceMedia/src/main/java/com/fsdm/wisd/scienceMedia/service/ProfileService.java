@@ -4,6 +4,7 @@ import com.fsdm.wisd.scienceMedia.dto.EditProfileRequest;
 import com.fsdm.wisd.scienceMedia.dto.ProfileDetailResponse;
 import com.fsdm.wisd.scienceMedia.entite.Image;
 import com.fsdm.wisd.scienceMedia.entite.Userr;
+import com.fsdm.wisd.scienceMedia.mapper.ImageRequestMapper;
 import com.fsdm.wisd.scienceMedia.mapper.ProfileDetailsMapper;
 import com.fsdm.wisd.scienceMedia.repositories.ImageRepository;
 import com.fsdm.wisd.scienceMedia.repositories.UserRepository;
@@ -78,18 +79,40 @@ public class ProfileService {
     @Transactional
     public HttpStatus editeProfile(EditProfileRequest editeProfileRequest, Authentication authentication) throws IOException {
         Optional<Userr> optUser = userRepository.findByEmail(authentication.getName());
+        System.out.println("user found "+ optUser);
         if(optUser.isPresent()){
             Userr user = optUser.get();
-            if(editeProfileRequest.getProfileImage()!=null){
-                Image profileImage = new Image();
-                MultipartFile mpf = editeProfileRequest.getProfileImage();
-                profileImage.setImageType(mpf.getContentType());
-                profileImage.setImageData(mpf.getBytes());
-                profileImage.setCreatedAt(LocalDateTime.now());
-                profileImage.setUser(user);
-//                imageRepository.save(profileImage);
-                user.setProfileImage(profileImage);
+            Optional<Image> optImage = imageRepository.findImageByUser(user);
+            if (optImage.isPresent()){
+                System.out.println("adding image for the first time");
+                Image image = optImage.get();
+                Image newImage = ImageRequestMapper.toImage(editeProfileRequest.getNewProfileImage());
+                image.setImageData(newImage.getImageData());
+                image.setImageType(newImage.getImageType());
+                image.setContent(newImage.getContent());
+                image.setCreatedAt(LocalDateTime.now());
+                user.setBio(editeProfileRequest.getBio());
+                user.setTitle(editeProfileRequest.getTitle());
+                user.setUsername(editeProfileRequest.getUsername());
+                userRepository.save(user);
+                System.out.println("user saved "+ user);
+                return HttpStatus.OK;
+            }
+            else {
+                System.out.println("editing a existing image");
+                Image newImage = ImageRequestMapper.toImage(editeProfileRequest.getNewProfileImage());
+                System.out.println(newImage.getImageData());
+                newImage.setUser(user);
+                newImage.setCreatedAt(LocalDateTime.now());
+                user.setProfileImage(newImage);
+                user.setBio(editeProfileRequest.getBio());
+                user.setTitle(editeProfileRequest.getTitle());
+                user.setUsername(editeProfileRequest.getUsername());
+                userRepository.save(user);
+                System.out.println("user saved " + user);
+                return HttpStatus.OK;
             }
         }
+        return HttpStatus.BAD_REQUEST;
     }
 }
