@@ -59,18 +59,18 @@ export default function SettingsScreen() {
           <SettingItem 
             icon="person-outline" 
             title="Informations personnelles" 
-            onPress={() => {}} 
+            onPress={()=>{router.push("/information-personnel")}} 
           />
           <SettingItem 
             icon="shield-checkmark-outline" 
             title="Sécurité" 
             subtitle="Mot de passe, 2FA"
-            onPress={() => {}} 
+            onPress={()=>{router.push("/SecuritySettingsScreen")}}
           />
           <SettingItem
             icon="notifications-outline" 
             title="Notifications" 
-            onPress={() => {}} 
+            onPress={()=>{router.push("/NotificationSettingsScreen")}}
             color="#FF9500"
           />
         </View>
@@ -81,21 +81,21 @@ export default function SettingsScreen() {
             icon="color-palette-outline" 
             title="Apparence" 
             subtitle="Thème sombre/clair"
-            onPress={() => {}} 
+            onPress={()=>{router.push("/AppearanceSettingsScreen")}}
             color="#5856D6"
           />
           <SettingItem 
             icon="language-outline" 
             title="Langue" 
             subtitle="Français"
-            onPress={() => {}} 
+            onPress={()=>{router.push("/LanguageSettingsScreen")}}
             color="#34C759"
           />
         </View>
 
         {/* --- DÉCONNEXION --- */}
         <View style={styles.section}>
-          <TouchableOpacity style={styles.logoutItem} onPress={() => console.log("Déconnexion")}>
+          <TouchableOpacity style={styles.logoutItem} onPress={() => {router.push("/login")}}>
             <Ionicons name="log-out-outline" size={22} color="#FF3B30" />
             <Text style={styles.logoutText}>Déconnexion</Text>
           </TouchableOpacity>
