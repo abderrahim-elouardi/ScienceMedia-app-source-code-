@@ -1,4 +1,4 @@
-import { View, Text, TouchableOpacity, StyleSheet, Image } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Image, Alert } from 'react-native';
 import { router } from 'expo-router';
 import { Avatar } from '../ui/Avatar';
 import { Colors } from '../../constants/theme';
@@ -34,7 +34,25 @@ function formatMeetingDate(value: string) {
   }).format(new Date(value));
 }
 
-export function PostCard({ post, onLike }: { post: Post; onLike: (id: string) => void }) {
+export function PostCard({
+  post,
+  onLike,
+  onRepost,
+}: {
+  post: Post;
+  onLike: (id: string) => void;
+  onRepost: (id: string) => void;
+}) {
+  function handleRepostPress() {
+    Alert.alert('Republier', '', [
+      { text: 'Annuler', style: 'cancel' },
+      { text: '🔁 Republier', onPress: () => onRepost(post.id) },
+      {
+        text: '✍️ Republier avec un texte',
+        onPress: () => router.push({ pathname: '/create-post', params: { repostId: post.id } }),
+      },
+    ]);
+  }
   return (
     <TouchableOpacity
       style={styles.card}
@@ -111,6 +129,11 @@ export function PostCard({ post, onLike }: { post: Post; onLike: (id: string) =>
         <TouchableOpacity style={styles.action} onPress={() => router.push(`/post/${post.id}`)}>
           <Text style={styles.actionIcon}>💬</Text>
           <Text style={styles.actionCount}>{post.commentsCount}</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity style={styles.action} onPress={handleRepostPress}>
+          <Text style={styles.actionIcon}>🔁</Text>
+          <Text style={styles.actionCount}>{post.sharesCount}</Text>
         </TouchableOpacity>
 
         {post.readTimeMinutes ? (

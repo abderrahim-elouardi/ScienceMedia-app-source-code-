@@ -19,7 +19,7 @@ import type { Post, PostType } from '../../types/post.types';
 
 export default function App(): React.JSX.Element {
   const [searchQuery, setSearchQuery] = useState<string>('');
-  const { feed, isLoading, error, refresh, handleLike } = useFeed();
+  const { feed, isLoading, error, refresh, handleLike, handleRepost } = useFeed();
 
   // Filtre les posts selon la recherche saisie
   const query = searchQuery.trim().toLowerCase();
@@ -35,7 +35,7 @@ export default function App(): React.JSX.Element {
   const showInitialLoader = isLoading && feed.length === 0;
 
   function renderPostCard({ item }: { item: Post }) {
-    return <PostCard post={item} onLike={handleLike} />;
+    return <PostCard post={item} onLike={handleLike} onRepost={handleRepost} />;
   }
 
   function renderListHeader() {

@@ -36,28 +36,6 @@ const exampleNotifications: Notification[] = [
     iconColor: '#0A66C2',
   },
   {
-    id: '4',
-    name: 'LinkedIn Jobs',
-    action: '5 new jobs match your preferences',
-    time: '4h ago',
-    read: true,
-    avatar: null,
-    isSystem: true,
-    systemIcon: '💼',
-    iconColor: '#0A66C2',
-  },
-  {
-    id: '5',
-    name: 'LinkedIn',
-    action: 'Your profile had 47 views this week',
-    time: '1d ago',
-    read: true,
-    avatar: null,
-    isSystem: true,
-    systemIcon: '📈',
-    iconColor: '#0A66C2',
-  },
-  {
     id: '6',
     name: 'David Kim',
     action: 'wants to connect',
@@ -149,23 +127,9 @@ export function useNotifications() {
 
   // Chargement initial au démarrage du composant
   useEffect(() => {
-    async function loadInitialNotifications() {
-      setLoading(true);
-      setError(null);
-      try {
-        const res = await notificationsService.getNotifications(undefined);
-        setNotifications(res.data);
-        setPagination(res.nextCursor, res.hasMore);
-      } catch {
-        setNotifications(exampleNotifications);
-        setPagination(undefined, false);
-        setError(null);
-      } finally {
-        setLoading(false);
-      }
-    }
-    loadInitialNotifications();
-  }, [setError, setNotifications, setLoading, setPagination]);
+    loadNotifications(true);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return {
     notifications,

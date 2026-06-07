@@ -1,63 +1,68 @@
-import { AuthResponse, User } from "@/types/Auth.Type";
-import { BASE_URL } from "./config";
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { AuthResponse, User } from '@/types/Auth.Type';
+import { BASE_URL } from './config';
 
-// Décommente cette ligne si tu utilises AsyncStorage plus tard :
-// import AsyncStorage from '@react-native-async-storage/async-storage';
-
-const BASE_AUTH_URL = BASE_URL+"/auth/login";
+const TOKEN_KEY = '@auth_token';
+const USER_KEY = '@auth_user';
 
 let _token: string | null = null;
 let _user: User | null = null;
 
-// Correction : Ajout du type de retour Promise<AuthResponse>
-const authenticate = async (username: string, password: string): Promise<AuthResponse> => {
-    const auth_url = BASE_AUTH_URL + "?email=" + username + "&password=" + password;
-    try {
-        const response = await fetch(auth_url, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ username, password }),
-        });
-
-        const responseText = await response.text();
-
-        if (!response.ok) {
-            const errorData = responseText ? JSON.parse(responseText) : null;
-            throw new Error(errorData?.message || `Erreur ${response.status}`);
-        }
-        else{
-            const data = responseText ? (JSON.parse(responseText) as AuthResponse) : null;
-            if (!data) {
-                throw new Error("Le serveur a renvoyé une réponse vide.");
-            }
-
-            // --- SAUVEGARDE EN CACHE ---
-            _token = data.acces_token;
-            _user = data.user;
-
-            // Si tu utilises AsyncStorage, décommente ces lignes :
-            // await AsyncStorage.setItem('@auth_token', data.acces_token);
-            // await AsyncStorage.setItem('@auth_user', JSON.stringify(data.user));
-
-            // ⚠️ CORRECTION CRITIQUE : Il faut absolument retourner les données !
-            return data; 
-        }        
-    } catch (error: any) {
-        _token = null
-        _user = null
-    }
+// Appelé au démarrage de l'app pour restaurer la session depuis le stockage
+export const loadStoredAuth = async (): Promise<void> => {
+  try {
+    const [token, userJson] = await Promise.all([
+      AsyncStorage.getItem(TOKEN_KEY),
+      AsyncStorage.getItem(USER_KEY),
+    ]);
+    _token = token;
+    _user = userJson ? JSON.parse(userJson) : null;
+  } catch (_e: unknown) {
+    _token = null;
+    _user = null;
+  }
 };
 
-// 2. Récupérer le token
-const getToken =  (): string|null => {
-    return _token;
+const authenticate = async (email: string, password: string): Promise<AuthResponse> => {
+  const url = `${BASE_URL}/auth/login?email=${encodeURIComponent(email)}&password=${encodeURIComponent(password)}`;
+
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData?.message || `Erreur ${response.status}`);
+  }
+
+  const data = (await response.json()) as AuthResponse;
+
+  _token = data.acces_token;
+  _user = data.user;
+
+  await Promise.all([
+    AsyncStorage.setItem(TOKEN_KEY, data.acces_token),
+    AsyncStorage.setItem(USER_KEY, JSON.stringify(data.user)),
+  ]);
+
+  return data;
 };
 
-// 3. Récupérer le profil de l'utilisateur connecté
-const getUser =  (): User | null => {
-    return _user;
+const getAuthToken = async (): Promise<string | null> => {
+  if (_token) return _token;
+  return AsyncStorage.getItem(TOKEN_KEY);
 };
 
-// Exportation propre des fonctions
-export { authenticate, getToken, getUser };
+const getToken = (): string | null => _token;
 
+const getUser = (): User | null => _user;
+
+const logout = async (): Promise<void> => {
+  _token = null;
+  _user = null;
+  await AsyncStorage.removeItem(TOKEN_KEY);
+  await AsyncStorage.removeItem(USER_KEY);
+};
+
+export { authenticate, getAuthToken, getToken, getUser, logout };

@@ -22,6 +22,9 @@ export const postsService = {
 
   createPost: (data: CreatePostData) =>
     apiClient.post<Post>('/posts', data),
+
+  repostPost: (postId: string) =>
+    apiClient.post<{ sharesCount: number }>(`/posts/${postId}/repost`),
 };
 
 // AOUAD ABDELKARIM

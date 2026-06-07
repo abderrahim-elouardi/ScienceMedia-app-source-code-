@@ -5,9 +5,12 @@ import {
   Image,
   ScrollView,
   TouchableOpacity,
+  TextInput,
   StyleSheet,
   ActivityIndicator,
   Alert,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
@@ -110,9 +113,13 @@ export default function PostDetailScreen() {
   const [post, setPost] = useState<Post | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [comments] = useState<Comment[]>(exampleComments);
+  const [comments, setComments] = useState<Comment[]>(exampleComments);
+  const [likedComments, setLikedComments] = useState<Set<string>>(new Set());
+  const [replyingTo, setReplyingTo] = useState<string | null>(null);
+  const [replyText, setReplyText] = useState('');
+  const [newComment, setNewComment] = useState('');
+  const [isSending, setIsSending] = useState(false);
 
-  // Charge le post depuis le cache ou depuis l'API
   useEffect(() => {
     async function loadPost() {
       const cached = feed.find((p) => p.id === id);
@@ -134,43 +141,72 @@ export default function PostDetailScreen() {
   }, [id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── J'aime ────────────────────────────────────────────────────────────────
-  function handleLike() {
+  async function handleLike() {
     if (!post) return;
-    const newIsLiked = !post.isLiked;
-    // Met à jour le compteur localement
+    const wasLiked = post.isLiked;
     setPost({
       ...post,
-      isLiked: newIsLiked,
-      likesCount: newIsLiked ? post.likesCount + 1 : post.likesCount - 1,
+      isLiked: !wasLiked,
+      likesCount: wasLiked ? post.likesCount - 1 : post.likesCount + 1,
     });
-    // Synchronise avec le fil global
     toggleLike(post.id);
+    try {
+      if (wasLiked) await postsService.unlikePost(post.id);
+      else await postsService.likePost(post.id);
+    } catch {
+      // API non disponible — on garde la mise à jour optimiste
+    }
   }
 
   // ── Republication ─────────────────────────────────────────────────────────
   function handleRepost() {
-    Alert.alert(
-      'Republier ce post',
-      'Choisissez une option :',
-      [
-        {
-          text: 'Annuler',
-          style: 'cancel',
+    if (!post) return;
+    Alert.alert('Republier ce post', 'Choisissez une option :', [
+      { text: 'Annuler', style: 'cancel' },
+      {
+        text: '🔁 Republier',
+        onPress: async () => {
+          setPost((p) => (p ? { ...p, sharesCount: p.sharesCount + 1 } : p));
+          try {
+            await postsService.repostPost(post.id);
+          } catch {}
         },
-        {
-          text: '🔁 Republier',
-          onPress: () => {
-            if (!post) return;
-            setPost({ ...post, sharesCount: post.sharesCount + 1 });
-            Alert.alert('Republié !', 'Le post a été republié avec succès.');
-          },
-        },
-        {
-          text: '✍️ Republier avec un texte',
-          onPress: () => router.push('/create-post'),
-        },
-      ]
-    );
+      },
+      {
+        text: '✍️ Republier avec un texte',
+        onPress: () =>
+          router.push({ pathname: '/create-post', params: { repostId: post.id } }),
+      },
+    ]);
+  }
+
+  // ── Ajouter un commentaire ────────────────────────────────────────────────
+  function handleAddComment() {
+    const text = newComment.trim();
+    if (!text || !post || isSending) return;
+    setIsSending(true);
+    const tempComment: Comment = {
+      id: Date.now().toString(),
+      authorName: 'Moi',
+      authorSpecialty: '',
+      text,
+      time: "À l'instant",
+      likesCount: 0,
+    };
+    setComments((prev) => [tempComment, ...prev]);
+    setPost((p) => (p ? { ...p, commentsCount: p.commentsCount + 1 } : p));
+    setNewComment('');
+    setIsSending(false);
+  }
+
+  // ── Like commentaire ──────────────────────────────────────────────────────
+  function toggleCommentLike(commentId: string) {
+    setLikedComments((prev) => {
+      const next = new Set(prev);
+      if (next.has(commentId)) next.delete(commentId);
+      else next.add(commentId);
+      return next;
+    });
   }
 
   // ─── États de chargement / erreur ─────────────────────────────────────────
@@ -203,146 +239,202 @@ export default function PostDetailScreen() {
   // ─── Contenu ──────────────────────────────────────────────────────────────
 
   return (
-    <SafeAreaView style={styles.container}>
-
-      {/* ── Barre de navigation ── */}
-      <View style={styles.header}>
-        <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
-          <Text style={styles.backArrow}>←</Text>
-          <Text style={styles.backLabel}>Retour</Text>
-        </TouchableOpacity>
-        <View style={styles.typeBadge}>
-          <Text style={styles.typeBadgeText}>{TYPE_LABELS[post.type] ?? post.type}</Text>
-        </View>
-      </View>
-
-      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-
-        {/* ── Auteur ── */}
-        <View style={styles.authorRow}>
-          <Avatar uri={post.author.avatarUrl} name={post.author.displayName} size={52} />
-          <View style={styles.authorInfo}>
-            <Text style={styles.authorName}>{post.author.displayName}</Text>
-            <Text style={styles.authorSpecialty}>{post.author.specialty}</Text>
-            <Text style={styles.postDate}>{formatDate(post.publishedAt)}</Text>
+    <SafeAreaView style={styles.container} edges={['top']}>
+      <KeyboardAvoidingView
+        style={styles.flex}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={0}
+      >
+        {/* ── Barre de navigation ── */}
+        <View style={styles.header}>
+          <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
+            <Text style={styles.backArrow}>←</Text>
+            <Text style={styles.backLabel}>Retour</Text>
+          </TouchableOpacity>
+          <View style={styles.typeBadge}>
+            <Text style={styles.typeBadgeText}>{TYPE_LABELS[post.type] ?? post.type}</Text>
           </View>
         </View>
 
-        {/* ── Titre ── */}
-        <Text style={styles.title}>{post.title}</Text>
-
-        {/* ── Image ── */}
-        {post.imageUrl ? (
-          <Image source={{ uri: post.imageUrl }} style={styles.image} resizeMode="cover" />
-        ) : null}
-
-        {/* ── Texte du post ── */}
-        <Text style={styles.body}>{post.content ?? post.excerpt}</Text>
-
-        {/* ── Carte réunion ── */}
-        {post.meeting ? (
-          <View style={styles.meetingCard}>
-            <Text style={styles.meetingLabel}>📅 Réunion</Text>
-            <Text style={styles.meetingTitle}>{post.meeting.title}</Text>
-            {post.meeting.description ? (
-              <Text style={styles.meetingDesc}>{post.meeting.description}</Text>
-            ) : null}
-            <Text style={styles.meetingInfoText}>
-              🗓 {formatMeetingDate(post.meeting.startDate)}
-            </Text>
-            {post.meeting.participantsCount ? (
-              <Text style={styles.meetingInfoText}>
-                👥 {post.meeting.participantsCount} participants
-              </Text>
-            ) : null}
-            {post.meeting.meetingUrl ? (
-              <TouchableOpacity style={styles.joinBtn}>
-                <Text style={styles.joinBtnText}>Rejoindre la réunion →</Text>
-              </TouchableOpacity>
-            ) : null}
-          </View>
-        ) : null}
-
-        {/* ── Document PDF ── */}
-        {post.documentUrl ? (
-          <View style={styles.documentCard}>
-            <Text style={styles.documentIcon}>📄</Text>
-            <View>
-              <Text style={styles.documentName}>{post.documentName ?? 'Document PDF'}</Text>
-              <Text style={styles.documentSub}>Appuyer pour ouvrir</Text>
+        <ScrollView
+          style={styles.flex}
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+        >
+          {/* ── Auteur ── */}
+          <View style={styles.authorRow}>
+            <Avatar uri={post.author.avatarUrl} name={post.author.displayName} size={52} />
+            <View style={styles.authorInfo}>
+              <Text style={styles.authorName}>{post.author.displayName}</Text>
+              <Text style={styles.authorSpecialty}>{post.author.specialty}</Text>
+              <Text style={styles.postDate}>{formatDate(post.publishedAt)}</Text>
             </View>
           </View>
-        ) : null}
 
-        {/* ── Tags ── */}
-        {post.tags.length > 0 ? (
-          <View style={styles.tagsRow}>
-            {post.tags.map((tag) => (
-              <View key={tag} style={styles.tag}>
-                <Text style={styles.tagText}>#{tag}</Text>
-              </View>
-            ))}
-          </View>
-        ) : null}
+          {/* ── Titre ── */}
+          <Text style={styles.title}>{post.title}</Text>
 
-        {/* ── Barre d'actions ── */}
-        <View style={styles.actionsBar}>
-
-          {/* J'aime */}
-          <TouchableOpacity style={styles.actionBtn} onPress={handleLike}>
-            <Text style={[styles.actionIcon, post.isLiked && styles.likedIcon]}>
-              {post.isLiked ? '♥' : '♡'}
-            </Text>
-            <Text style={[styles.actionCount, post.isLiked && styles.likedCount]}>
-              {post.likesCount}
-            </Text>
-          </TouchableOpacity>
-
-          {/* Commentaires */}
-          <View style={styles.actionBtn}>
-            <Text style={styles.actionIcon}>💬</Text>
-            <Text style={styles.actionCount}>{comments.length}</Text>
-          </View>
-
-          {/* Republier */}
-          <TouchableOpacity style={styles.actionBtn} onPress={handleRepost}>
-            <Text style={styles.actionIcon}>🔁</Text>
-            <Text style={styles.actionCount}>{post.sharesCount}</Text>
-          </TouchableOpacity>
-
-          {post.readTimeMinutes ? (
-            <Text style={styles.readTime}>📖 {post.readTimeMinutes} min</Text>
+          {/* ── Image ── */}
+          {post.imageUrl ? (
+            <Image source={{ uri: post.imageUrl }} style={styles.image} resizeMode="cover" />
           ) : null}
 
-        </View>
+          {/* ── Texte du post ── */}
+          <Text style={styles.body}>{post.content ?? post.excerpt}</Text>
 
-        {/* ── Section commentaires ── */}
-        <View style={styles.commentsSection}>
-          <Text style={styles.commentsTitle}>
-            💬 Commentaires ({comments.length})
-          </Text>
+          {/* ── Carte réunion ── */}
+          {post.meeting ? (
+            <View style={styles.meetingCard}>
+              <Text style={styles.meetingLabel}>📅 Réunion</Text>
+              <Text style={styles.meetingTitle}>{post.meeting.title}</Text>
+              {post.meeting.description ? (
+                <Text style={styles.meetingDesc}>{post.meeting.description}</Text>
+              ) : null}
+              <Text style={styles.meetingInfoText}>
+                🗓 {formatMeetingDate(post.meeting.startDate)}
+              </Text>
+              {post.meeting.participantsCount ? (
+                <Text style={styles.meetingInfoText}>
+                  👥 {post.meeting.participantsCount} participants
+                </Text>
+              ) : null}
+              {post.meeting.meetingUrl ? (
+                <TouchableOpacity style={styles.joinBtn}>
+                  <Text style={styles.joinBtnText}>Rejoindre la réunion →</Text>
+                </TouchableOpacity>
+              ) : null}
+            </View>
+          ) : null}
 
-          {comments.map((comment) => (
-            <View key={comment.id} style={styles.commentCard}>
-              <Avatar uri={comment.avatarUrl} name={comment.authorName} size={38} />
-              <View style={styles.commentBody}>
-                <View style={styles.commentHeader}>
-                  <Text style={styles.commentAuthorName}>{comment.authorName}</Text>
-                  <Text style={styles.commentTime}>{comment.time}</Text>
-                </View>
-                <Text style={styles.commentSpecialty}>{comment.authorSpecialty}</Text>
-                <Text style={styles.commentText}>{comment.text}</Text>
-                <View style={styles.commentActions}>
-                  <Text style={styles.commentLike}>♡ {comment.likesCount}</Text>
-                  <Text style={styles.commentReply}>Répondre</Text>
-                </View>
+          {/* ── Document PDF ── */}
+          {post.documentUrl ? (
+            <View style={styles.documentCard}>
+              <Text style={styles.documentIcon}>📄</Text>
+              <View>
+                <Text style={styles.documentName}>{post.documentName ?? 'Document PDF'}</Text>
+                <Text style={styles.documentSub}>Appuyer pour ouvrir</Text>
               </View>
             </View>
-          ))}
+          ) : null}
 
+          {/* ── Tags ── */}
+          {post.tags.length > 0 ? (
+            <View style={styles.tagsRow}>
+              {post.tags.map((tag) => (
+                <View key={tag} style={styles.tag}>
+                  <Text style={styles.tagText}>#{tag}</Text>
+                </View>
+              ))}
+            </View>
+          ) : null}
+
+          {/* ── Barre d'actions ── */}
+          <View style={styles.actionsBar}>
+            <TouchableOpacity style={styles.actionBtn} onPress={handleLike}>
+              <Text style={[styles.actionIcon, post.isLiked && styles.likedIcon]}>
+                {post.isLiked ? '♥' : '♡'}
+              </Text>
+              <Text style={[styles.actionCount, post.isLiked && styles.likedCount]}>
+                {post.likesCount}
+              </Text>
+            </TouchableOpacity>
+
+            <View style={styles.actionBtn}>
+              <Text style={styles.actionIcon}>💬</Text>
+              <Text style={styles.actionCount}>{comments.length}</Text>
+            </View>
+
+            <TouchableOpacity style={styles.actionBtn} onPress={handleRepost}>
+              <Text style={styles.actionIcon}>🔁</Text>
+              <Text style={styles.actionCount}>{post.sharesCount}</Text>
+            </TouchableOpacity>
+
+            {post.readTimeMinutes ? (
+              <Text style={styles.readTime}>📖 {post.readTimeMinutes} min</Text>
+            ) : null}
+          </View>
+
+          {/* ── Section commentaires ── */}
+          <View style={styles.commentsSection}>
+            <Text style={styles.commentsTitle}>
+              💬 Commentaires ({comments.length})
+            </Text>
+
+            {comments.map((comment) => {
+              const isLiked = likedComments.has(comment.id);
+              const isReplying = replyingTo === comment.id;
+              return (
+                <View key={comment.id} style={styles.commentCard}>
+                  <Avatar uri={comment.avatarUrl} name={comment.authorName} size={38} />
+                  <View style={styles.commentBody}>
+                    <View style={styles.commentHeader}>
+                      <Text style={styles.commentAuthorName}>{comment.authorName}</Text>
+                      <Text style={styles.commentTime}>{comment.time}</Text>
+                    </View>
+                    {comment.authorSpecialty ? (
+                      <Text style={styles.commentSpecialty}>{comment.authorSpecialty}</Text>
+                    ) : null}
+                    <Text style={styles.commentText}>{comment.text}</Text>
+                    <View style={styles.commentActions}>
+                      <TouchableOpacity onPress={() => toggleCommentLike(comment.id)}>
+                        <Text style={[styles.commentLike, isLiked && styles.commentLikedActive]}>
+                          {isLiked ? '♥' : '♡'} {comment.likesCount + (isLiked ? 1 : 0)}
+                        </Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        onPress={() => setReplyingTo(isReplying ? null : comment.id)}
+                      >
+                        <Text style={styles.commentReply}>Répondre</Text>
+                      </TouchableOpacity>
+                    </View>
+                    {isReplying && (
+                      <View style={styles.replyInputRow}>
+                        <TextInput
+                          style={styles.replyInput}
+                          placeholder={`Répondre à ${comment.authorName}…`}
+                          placeholderTextColor="#9CA3AF"
+                          value={replyText}
+                          onChangeText={setReplyText}
+                          autoFocus
+                        />
+                        <TouchableOpacity
+                          onPress={() => {
+                            setReplyText('');
+                            setReplyingTo(null);
+                          }}
+                        >
+                          <Text style={styles.replySendBtn}>Envoyer</Text>
+                        </TouchableOpacity>
+                      </View>
+                    )}
+                  </View>
+                </View>
+              );
+            })}
+          </View>
+        </ScrollView>
+
+        {/* ── Barre de saisie de commentaire ── */}
+        <View style={styles.commentInputBar}>
+          <TextInput
+            style={styles.commentInput}
+            placeholder="Écrire un commentaire…"
+            placeholderTextColor="#9CA3AF"
+            value={newComment}
+            onChangeText={setNewComment}
+            multiline
+            maxLength={500}
+          />
+          <TouchableOpacity
+            style={[styles.sendBtn, (!newComment.trim() || isSending) && styles.sendBtnDisabled]}
+            onPress={handleAddComment}
+            disabled={!newComment.trim() || isSending}
+          >
+            <Text style={styles.sendBtnText}>↑</Text>
+          </TouchableOpacity>
         </View>
-
-      </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
@@ -353,6 +445,9 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#f3f2ef',
+  },
+  flex: {
+    flex: 1,
   },
 
   // Chargement / erreur
@@ -431,7 +526,7 @@ const styles = StyleSheet.create({
   scrollContent: {
     padding: 16,
     gap: 16,
-    paddingBottom: 40,
+    paddingBottom: 24,
   },
 
   // Auteur
@@ -671,6 +766,76 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: Colors.light.tint,
     fontWeight: '600',
+  },
+  commentLikedActive: {
+    color: Colors.light.tint,
+  },
+  replyInputRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 8,
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: '#F2F4F7',
+  },
+  replyInput: {
+    flex: 1,
+    borderWidth: 1,
+    borderColor: '#E6E8EC',
+    borderRadius: 20,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    fontSize: 13,
+    color: '#344054',
+    backgroundColor: '#F9FAFB',
+  },
+  replySendBtn: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: Colors.light.tint,
+  },
+
+  // Barre de saisie de commentaire (fixe en bas)
+  commentInputBar: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    gap: 10,
+    backgroundColor: '#fff',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderTopWidth: 1,
+    borderTopColor: '#E5E7EB',
+  },
+  commentInput: {
+    flex: 1,
+    minHeight: 40,
+    maxHeight: 100,
+    borderWidth: 1,
+    borderColor: '#E6E8EC',
+    borderRadius: 20,
+    paddingHorizontal: 14,
+    paddingVertical: 9,
+    fontSize: 14,
+    color: '#344054',
+    backgroundColor: '#F9FAFB',
+  },
+  sendBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: Colors.light.tint,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  sendBtnDisabled: {
+    backgroundColor: '#D1D5DB',
+  },
+  sendBtnText: {
+    color: '#fff',
+    fontSize: 18,
+    fontWeight: '700',
+    lineHeight: 22,
   },
 });
 

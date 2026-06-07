@@ -54,13 +54,10 @@ public class config {
                 .requestMatchers("/auth/login").permitAll()
                 .requestMatchers("/profile/register").permitAll()
                 .requestMatchers("/profile/change-password-with-email").permitAll()
-
-//                .requestMatchers("/addClient").permitAll()
-//                .requestMatchers("/getCommentaire").permitAll()
-//                .requestMatchers("/prompt/**").permitAll()
-//                .requestMatchers("/forgetPassword").permitAll()
-//                .requestMatchers("/changerForgotPassword").permitAll()
-//                .requestMatchers("/getAuth").permitAll()
+                .requestMatchers("/feed").authenticated()
+                .requestMatchers("/posts/**").authenticated()
+                .requestMatchers("/notifications/**").authenticated()
+                .requestMatchers("/users/**").authenticated()
                 .anyRequest().authenticated());
         http.oauth2ResourceServer(oauth2 -> oauth2
                 .jwt(jwt -> jwt
@@ -79,7 +76,7 @@ public class config {
     CorsConfigurationSource CorsConfigurationSource(){
         CorsConfiguration CorsConfiguration=new CorsConfiguration();
         CorsConfiguration.setAllowedOriginPatterns(Arrays.asList("*")); // Utilisation de allowedOriginPatterns
-        CorsConfiguration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS")); // Spécification des méthodes
+        CorsConfiguration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS")); // Spécification des méthodes
         CorsConfiguration.setAllowedHeaders(Arrays.asList("Authorization", "Content-Type")); // Spécification des en-têtes
         CorsConfiguration.setAllowCredentials(true); // Activation des informations d'identification
         UrlBasedCorsConfigurationSource source=new UrlBasedCorsConfigurationSource();

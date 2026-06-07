@@ -1,5 +1,5 @@
-const BASE_URL = 'URL_FOR_BACKEND_API';
-
+import { BASE_URL } from './config';
+import { getAuthToken } from './auth.service';
 
 class ApiError extends Error {
   constructor(public status: number, message: string) {
@@ -9,8 +9,7 @@ class ApiError extends Error {
 }
 
 async function request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
-
-  const token = await getAuthToken(); // depuis SecureStore
+  const token = await getAuthToken();
 
   const res = await fetch(`${BASE_URL}${endpoint}`, {
     ...options,

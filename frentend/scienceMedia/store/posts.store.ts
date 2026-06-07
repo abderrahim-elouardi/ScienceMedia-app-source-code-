@@ -13,6 +13,7 @@ interface PostsState {
   appendFeed: (posts: Post[]) => void;
   prependPost: (post: Post) => void;
   toggleLike: (postId: string) => void;
+  incrementShares: (postId: string) => void;
   setLoading: (v: boolean) => void;
   setError: (msg: string | null) => void;
   setPagination: (cursor?: string, hasMore?: boolean) => void;
@@ -38,6 +39,13 @@ export const usePostsStore = create<PostsState>((set) => ({
               likesCount: p.isLiked ? p.likesCount - 1 : p.likesCount + 1,
             }
           : p
+      ),
+    })),
+
+  incrementShares: (postId) =>
+    set((s) => ({
+      feed: s.feed.map((p) =>
+        p.id === postId ? { ...p, sharesCount: p.sharesCount + 1 } : p
       ),
     })),
 

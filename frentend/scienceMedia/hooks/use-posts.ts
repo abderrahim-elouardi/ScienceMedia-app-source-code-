@@ -83,7 +83,7 @@ const exampleFeed: Post[] = [
 export function useFeed() {
   const {
     feed, isLoading, error, nextCursor, hasMore,
-    setFeed, appendFeed, toggleLike,
+    setFeed, appendFeed, toggleLike, incrementShares,
     setLoading, setError, setPagination,
   } = usePostsStore();
 
@@ -125,12 +125,22 @@ export function useFeed() {
   async function handleLike(postId: string) {
     const post = feed.find((p) => p.id === postId);
     if (!post) return;
-    toggleLike(postId); // mise à jour optimiste
+    toggleLike(postId);
     try {
       if (post.isLiked) await postsService.unlikePost(postId);
       else await postsService.likePost(postId);
     } catch {
-      toggleLike(postId); // annulation si erreur
+      // API non disponible — on garde la mise à jour optimiste
+    }
+  }
+
+  // Gère la republication d'un post
+  async function handleRepost(postId: string) {
+    incrementShares(postId);
+    try {
+      await postsService.repostPost(postId);
+    } catch {
+      // API non disponible — on garde la mise à jour optimiste
     }
   }
 
@@ -162,6 +172,7 @@ export function useFeed() {
     refresh,
     loadMore,
     handleLike,
+    handleRepost,
   };
 }
 

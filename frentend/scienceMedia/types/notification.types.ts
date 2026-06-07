@@ -7,8 +7,6 @@ export interface Notification {
   avatar: string | null;
   iconColor: string;
   icon?: string;
-  isSystem?: boolean;
-  systemIcon?: string;
 }
 
 export interface PaginatedResponse<T> {
