@@ -15,6 +15,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
 import * as DocumentPicker from 'expo-document-picker';
+import * as FileSystem from 'expo-file-system/legacy';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Colors } from '../constants/theme';
 import { useCreatePost } from '../hooks/use-posts';
@@ -38,6 +39,9 @@ export default function CreatePostScreen() {
   const [title, setTitle]               = useState('');
   const [content, setContent]           = useState('');
   const [mediaUri, setMediaUri]         = useState<string | null>(null);
+  // URI au format data:<mime>;base64,<...> prête à être envoyée et stockée par le backend
+  const [mediaDataUri, setMediaDataUri] = useState<string | null>(null);
+  const [isProcessingMedia, setIsProcessingMedia] = useState(false);
   const [pdfUri, setPdfUri]             = useState<string | null>(null);
   const [pdfName, setPdfName]           = useState<string | null>(null);
   const [tagInput, setTagInput]         = useState('');
@@ -57,8 +61,19 @@ export default function CreatePostScreen() {
       const wasVideo = VIDEO_TYPES.includes(selectedType);
       if ((wasImage && !nowImage) || (wasVideo && !nowVideo) || (!nowImage && !nowVideo)) {
         setMediaUri(null);
+        setMediaDataUri(null);
       }
     }
+  }
+
+  // Déduit un type MIME à partir de l'URI quand le picker n'en fournit pas
+  function guessMimeType(uri: string, fallbackPrefix: 'image' | 'video') {
+    const extension = uri.split('.').pop()?.toLowerCase();
+    if (!extension) return `${fallbackPrefix}/${fallbackPrefix === 'image' ? 'jpeg' : 'mp4'}`;
+    if (fallbackPrefix === 'image') {
+      return `image/${extension === 'jpg' ? 'jpeg' : extension}`;
+    }
+    return `video/${extension === 'mov' ? 'quicktime' : extension}`;
   }
 
   // ── Permissions ──────────────────────────────────────────────────────────
@@ -81,6 +96,52 @@ export default function CreatePostScreen() {
     return true;
   }
 
+  // ── Traitement commun : encode le média choisi en data URI base64 ───────
+  // Le backend stocke directement cette chaîne (comme pour la photo de profil) :
+  // un simple chemin local ne serait accessible que sur cet appareil et ne
+  // s'afficherait jamais une fois republié ou consulté ailleurs.
+
+  async function handlePickedImage(asset: ImagePicker.ImagePickerAsset) {
+    setMediaUri(asset.uri);
+    setMediaDataUri(null);
+    if (asset.base64) {
+      const mimeType = asset.mimeType || guessMimeType(asset.uri, 'image');
+      setMediaDataUri(`data:${mimeType};base64,${asset.base64}`);
+      return;
+    }
+    setIsProcessingMedia(true);
+    try {
+      const base64 = await FileSystem.readAsStringAsync(asset.uri, {
+        encoding: FileSystem.EncodingType.Base64,
+      });
+      const mimeType = asset.mimeType || guessMimeType(asset.uri, 'image');
+      setMediaDataUri(`data:${mimeType};base64,${base64}`);
+    } catch {
+      Alert.alert('Erreur', "Impossible de traiter cette image.");
+      setMediaUri(null);
+    } finally {
+      setIsProcessingMedia(false);
+    }
+  }
+
+  async function handlePickedVideo(asset: ImagePicker.ImagePickerAsset) {
+    setMediaUri(asset.uri);
+    setMediaDataUri(null);
+    setIsProcessingMedia(true);
+    try {
+      const base64 = await FileSystem.readAsStringAsync(asset.uri, {
+        encoding: FileSystem.EncodingType.Base64,
+      });
+      const mimeType = asset.mimeType || guessMimeType(asset.uri, 'video');
+      setMediaDataUri(`data:${mimeType};base64,${base64}`);
+    } catch {
+      Alert.alert('Erreur', "Impossible de traiter cette vidéo. Choisissez un fichier plus léger.");
+      setMediaUri(null);
+    } finally {
+      setIsProcessingMedia(false);
+    }
+  }
+
   // ── Sélecteurs d'image ───────────────────────────────────────────────────
 
   async function pickImageFromGallery() {
@@ -90,9 +151,10 @@ export default function CreatePostScreen() {
       quality: 0.85,
       allowsEditing: true,
       aspect: [16, 9],
+      base64: true,
     });
     if (!result.canceled && result.assets[0]) {
-      setMediaUri(result.assets[0].uri);
+      await handlePickedImage(result.assets[0]);
     }
   }
 
@@ -103,9 +165,10 @@ export default function CreatePostScreen() {
       quality: 0.85,
       allowsEditing: true,
       aspect: [16, 9],
+      base64: true,
     });
     if (!result.canceled && result.assets[0]) {
-      setMediaUri(result.assets[0].uri);
+      await handlePickedImage(result.assets[0]);
     }
   }
 
@@ -119,7 +182,7 @@ export default function CreatePostScreen() {
       videoMaxDuration: 300,
     });
     if (!result.canceled && result.assets[0]) {
-      setMediaUri(result.assets[0].uri);
+      await handlePickedVideo(result.assets[0]);
     }
   }
 
@@ -131,7 +194,7 @@ export default function CreatePostScreen() {
       videoMaxDuration: 300,
     });
     if (!result.canceled && result.assets[0]) {
-      setMediaUri(result.assets[0].uri);
+      await handlePickedVideo(result.assets[0]);
     }
   }
 
@@ -188,8 +251,20 @@ export default function CreatePostScreen() {
       tags,
     };
 
-    if (isImage && mediaUri) postData.imageUrl = mediaUri;
-    if (isVideo && mediaUri) postData.videoUrl = mediaUri;
+    if (isImage && mediaUri) {
+      if (!mediaDataUri) {
+        Alert.alert('Patientez', "L'image est encore en cours de traitement, réessayez dans un instant.");
+        return;
+      }
+      postData.imageUrl = mediaDataUri;
+    }
+    if (isVideo && mediaUri) {
+      if (!mediaDataUri) {
+        Alert.alert('Patientez', "La vidéo est encore en cours de traitement, réessayez dans un instant.");
+        return;
+      }
+      postData.videoUrl = mediaDataUri;
+    }
     if (selectedType === 'text' && pdfUri) {
       postData.documentUrl = pdfUri;
       postData.documentName = pdfName ?? undefined;
@@ -220,7 +295,7 @@ export default function CreatePostScreen() {
         <TouchableOpacity
           onPress={handleSubmit}
           style={[styles.headerSideBtn, styles.publishBtn]}
-          disabled={isSubmitting}
+          disabled={isSubmitting || isProcessingMedia}
         >
           {isSubmitting ? (
             <ActivityIndicator color="#fff" size="small" />
@@ -316,7 +391,16 @@ export default function CreatePostScreen() {
               {mediaUri ? (
                 <View style={styles.mediaPreviewWrap}>
                   <Image source={{ uri: mediaUri }} style={styles.imagePreview} resizeMode="cover" />
-                  <TouchableOpacity style={styles.removeMediaBtn} onPress={() => setMediaUri(null)}>
+                  {isProcessingMedia && (
+                    <View style={styles.mediaProcessingOverlay}>
+                      <ActivityIndicator color="#fff" />
+                      <Text style={styles.mediaProcessingText}>Traitement de l'image...</Text>
+                    </View>
+                  )}
+                  <TouchableOpacity
+                    style={styles.removeMediaBtn}
+                    onPress={() => { setMediaUri(null); setMediaDataUri(null); }}
+                  >
                     <Text style={styles.removeMediaText}>✕</Text>
                   </TouchableOpacity>
                 </View>
@@ -344,9 +428,18 @@ export default function CreatePostScreen() {
               <Text style={styles.label}>Vidéo</Text>
               {mediaUri ? (
                 <View style={styles.videoSelectedBox}>
-                  <Text style={styles.videoSelectedIcon}>🎥</Text>
-                  <Text style={styles.videoSelectedLabel} numberOfLines={1}>Vidéo sélectionnée</Text>
-                  <TouchableOpacity onPress={() => setMediaUri(null)} style={styles.videoRemoveBtn}>
+                  {isProcessingMedia ? (
+                    <ActivityIndicator color={Colors.light.tint} />
+                  ) : (
+                    <Text style={styles.videoSelectedIcon}>🎥</Text>
+                  )}
+                  <Text style={styles.videoSelectedLabel} numberOfLines={1}>
+                    {isProcessingMedia ? 'Traitement de la vidéo...' : 'Vidéo sélectionnée'}
+                  </Text>
+                  <TouchableOpacity
+                    onPress={() => { setMediaUri(null); setMediaDataUri(null); }}
+                    style={styles.videoRemoveBtn}
+                  >
                     <Text style={styles.removeMediaText}>✕</Text>
                   </TouchableOpacity>
                 </View>
@@ -607,6 +700,19 @@ const styles = StyleSheet.create({
     height: 200,
     borderRadius: 12,
     backgroundColor: '#F3F4F6',
+  },
+  mediaProcessingOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    borderRadius: 12,
+    backgroundColor: 'rgba(0,0,0,0.45)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  mediaProcessingText: {
+    color: '#fff',
+    fontSize: 13,
+    fontWeight: '600',
   },
   removeMediaBtn: {
     position: 'absolute',

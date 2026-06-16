@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -15,11 +15,24 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { PostCard } from '../../components/feed/PostCard';
 import { useFeed } from '../../hooks/use-posts';
+import { getProfileDetailsState } from '../../services/profile.service';
 import type { Post, PostType } from '../../types/post.types';
+
+const DEFAULT_AVATAR = 'https://randomuser.me/api/portraits/men/75.jpg';
 
 export default function App(): React.JSX.Element {
   const [searchQuery, setSearchQuery] = useState<string>('');
+  const [avatarUri, setAvatarUri] = useState<string>(DEFAULT_AVATAR);
   const { feed, isLoading, error, refresh, handleLike, handleRepost } = useFeed();
+
+  useEffect(() => {
+    getProfileDetailsState().then((stats) => {
+      if (stats?.profileImage) {
+        const cleanBase64 = stats.profileImage.imageData.replace(/[\n\r\s]/g, "");
+        setAvatarUri(`data:${stats.profileImage.imageType};base64,${cleanBase64}`);
+      }
+    });
+  }, []);
 
   // Filtre les posts selon la recherche saisie
   const query = searchQuery.trim().toLowerCase();
@@ -43,7 +56,7 @@ export default function App(): React.JSX.Element {
       <View>
         <View style={styles.topBar}>
           <Image
-            source={{ uri: 'https://randomuser.me/api/portraits/men/75.jpg' }}
+            source={{ uri: avatarUri }}
             style={styles.topAvatar}
           />
           <View style={styles.searchBox}>
@@ -61,7 +74,7 @@ export default function App(): React.JSX.Element {
         <View style={styles.createCard}>
           <View style={styles.createTop}>
             <Image
-              source={{ uri: 'https://randomuser.me/api/portraits/men/75.jpg' }}
+              source={{ uri: avatarUri }}
               style={styles.createAvatar}
             />
             <TouchableOpacity

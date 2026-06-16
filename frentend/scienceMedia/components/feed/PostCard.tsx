@@ -1,8 +1,16 @@
 import { View, Text, TouchableOpacity, StyleSheet, Image, Alert } from 'react-native';
 import { router } from 'expo-router';
 import { Avatar } from '../ui/Avatar';
+import { PostVideo } from './PostVideo';
 import { Colors } from '../../constants/theme';
 import type { Post, PostType } from '../../types/post.types';
+
+// Les data: URI (images stockées en base64) ne supportent pas l'ajout de
+// paramètres de redimensionnement — seules les URLs distantes (CDN) le permettent.
+function buildPreviewImageUri(imageUrl: string) {
+  if (imageUrl.startsWith('data:')) return imageUrl;
+  return `${imageUrl}?w=500&h=220&fit=crop`;
+}
 
 const TYPE_LABELS: Record<PostType, string> = {
   text: 'Texte',
@@ -79,9 +87,13 @@ export function PostCard({
 
       {post.imageUrl ? (
         <Image
-          source={{ uri: post.imageUrl + '?w=500&h=220&fit=crop' }}
+          source={{ uri: buildPreviewImageUri(post.imageUrl) }}
           style={styles.previewImage}
         />
+      ) : null}
+
+      {post.videoUrl ? (
+        <PostVideo uri={post.videoUrl} style={styles.previewImage} />
       ) : null}
 
       {post.documentUrl ? (

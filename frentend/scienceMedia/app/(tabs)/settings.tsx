@@ -1,5 +1,8 @@
+import { getUser } from '@/services/auth.service';
+import { getProfileDetailsState } from '@/services/profile.service';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+import { useEffect, useState } from 'react';
 import {
   Image,
   SafeAreaView,
@@ -11,12 +14,24 @@ import {
 } from 'react-native';
 
 export default function SettingsScreen() {
-  
-  // Simulation de données utilisateur (à remplacer par tes données réelles/auth)
+
+  // Données réelles de l'utilisateur connecté
+  const currentUser = getUser();
+  const [avatarUri, setAvatarUri] = useState<string | undefined>(undefined);
+
+  useEffect(() => {
+    getProfileDetailsState().then((stats) => {
+      if (stats?.profileImage) {
+        const cleanBase64 = stats.profileImage.imageData.replace(/[\n\r\s]/g, "");
+        setAvatarUri(`data:${stats.profileImage.imageType};base64,${cleanBase64}`);
+      }
+    });
+  }, []);
+
   const user = {
-    name: "Alexandre",
-    email: "alex@example.com",
-    avatar: "https://i.pravatar.cc/150?u=9",
+    name: currentUser?.username || '',
+    email: currentUser?.email || '',
+    avatar: avatarUri,
   };
   const router = useRouter();
   // Fonction pour rendre une ligne de paramètre
@@ -40,7 +55,13 @@ export default function SettingsScreen() {
         {/* --- SECTION PROFIL --- */}
         <View style={styles.profileSection}>
           <View style={styles.avatarWrapper}>
-            <Image source={{ uri: user.avatar }} style={styles.avatar} />
+            {user.avatar ? (
+              <Image source={{ uri: user.avatar }} style={styles.avatar} />
+            ) : (
+              <View style={[styles.avatar, styles.placeholderAvatar]}>
+                <Ionicons name="person" size={40} color="#aaa" />
+              </View>
+            )}
             <TouchableOpacity style={styles.editBadge}>
               <Ionicons name="camera" size={16} color="#fff" />
             </TouchableOpacity>
@@ -128,6 +149,11 @@ const styles = StyleSheet.create({
     borderRadius: 50,
     borderWidth: 3,
     borderColor: '#007AFF',
+  },
+  placeholderAvatar: {
+    backgroundColor: '#f0f0f0',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   editBadge: {
     position: 'absolute',

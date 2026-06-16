@@ -5,6 +5,7 @@ import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import lombok.ToString;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -41,11 +42,14 @@ public class Userr {
             joinColumns = @JoinColumn(name = "user_id"),
             inverseJoinColumns = @JoinColumn(name = "follower_id")
     )
+    @ToString.Exclude
     private List<Userr> following = new ArrayList<Userr>();
 
     @ManyToMany(mappedBy = "following")
+    @ToString.Exclude
     private List<Userr> followers = new ArrayList<>();
 
     @OneToMany(mappedBy = "author", cascade = CascadeType.ALL, orphanRemoval = true)
+    @ToString.Exclude
     private List<Post> posts = new ArrayList<>();
 }

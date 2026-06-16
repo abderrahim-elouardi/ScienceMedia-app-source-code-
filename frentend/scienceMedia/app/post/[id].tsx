@@ -15,64 +15,26 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Avatar } from '../../components/ui/Avatar';
+import { PostVideo } from '../../components/feed/PostVideo';
 import { Colors } from '../../constants/theme';
 import { postsService } from '../../services/posts.service';
+import { commentsService } from '../../services/comments.service';
 import { usePostsStore } from '../../store/posts.store';
 import type { Post } from '../../types/post.types';
-
-// ─── Types ────────────────────────────────────────────────────────────────────
-
-interface Comment {
-  id: string;
-  authorName: string;
-  authorSpecialty: string;
-  avatarUrl?: string;
-  text: string;
-  time: string;
-  likesCount: number;
-}
-
-// ─── Données d'exemple ────────────────────────────────────────────────────────
-
-const exampleComments: Comment[] = [
-  {
-    id: '1',
-    authorName: 'Marie Dupont',
-    authorSpecialty: 'Data Scientist · Université Paris-Saclay',
-    avatarUrl: 'https://randomuser.me/api/portraits/women/22.jpg',
-    text: 'Très intéressant comme approche ! Avez-vous pensé à publier ça dans une revue scientifique ?',
-    time: '10 min',
-    likesCount: 7,
-  },
-  {
-    id: '2',
-    authorName: 'Karim Benali',
-    authorSpecialty: 'Software Engineer · Thales',
-    avatarUrl: 'https://randomuser.me/api/portraits/men/54.jpg',
-    text: 'Merci pour ce partage, je vais transmettre à mon équipe.',
-    time: '35 min',
-    likesCount: 3,
-  },
-  {
-    id: '3',
-    authorName: 'Sofia Martins',
-    authorSpecialty: 'PhD Student · INRIA',
-    avatarUrl: 'https://randomuser.me/api/portraits/women/61.jpg',
-    text: "Super contenu ! J'aurais aimé avoir accès à ça plus tôt dans ma thèse.",
-    time: '1 h',
-    likesCount: 12,
-  },
-  {
-    id: '4',
-    authorName: 'Thomas Renard',
-    authorSpecialty: 'Enseignant-chercheur · CNRS',
-    text: 'Je suis totalement en accord avec vos conclusions. Continuez !',
-    time: '2 h',
-    likesCount: 5,
-  },
-];
+import type { Comment } from '../../types/comment.types';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
+
+function formatRelativeTime(value: string) {
+  const date = new Date(value);
+  const diffMs = Date.now() - date.getTime();
+  const diffMinutes = Math.max(1, Math.floor(diffMs / 60000));
+
+  if (diffMinutes < 60) return `${diffMinutes} min`;
+  const diffHours = Math.floor(diffMinutes / 60);
+  if (diffHours < 24) return `${diffHours} h`;
+  return `${Math.floor(diffHours / 24)} j`;
+}
 
 const TYPE_LABELS: Record<string, string> = {
   text: 'Texte',
@@ -113,7 +75,8 @@ export default function PostDetailScreen() {
   const [post, setPost] = useState<Post | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [comments, setComments] = useState<Comment[]>(exampleComments);
+  const [comments, setComments] = useState<Comment[]>([]);
+  const [areCommentsLoading, setAreCommentsLoading] = useState(true);
   const [likedComments, setLikedComments] = useState<Set<string>>(new Set());
   const [replyingTo, setReplyingTo] = useState<string | null>(null);
   const [replyText, setReplyText] = useState('');
@@ -139,6 +102,21 @@ export default function PostDetailScreen() {
     }
     loadPost();
   }, [id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    async function loadComments() {
+      setAreCommentsLoading(true);
+      try {
+        const res = await commentsService.getComments(id);
+        setComments(res);
+      } catch {
+        // API non disponible — on garde la liste vide
+      } finally {
+        setAreCommentsLoading(false);
+      }
+    }
+    loadComments();
+  }, [id]);
 
   // ── J'aime ────────────────────────────────────────────────────────────────
   async function handleLike() {
@@ -181,22 +159,20 @@ export default function PostDetailScreen() {
   }
 
   // ── Ajouter un commentaire ────────────────────────────────────────────────
-  function handleAddComment() {
+  async function handleAddComment() {
     const text = newComment.trim();
     if (!text || !post || isSending) return;
     setIsSending(true);
-    const tempComment: Comment = {
-      id: Date.now().toString(),
-      authorName: 'Moi',
-      authorSpecialty: '',
-      text,
-      time: "À l'instant",
-      likesCount: 0,
-    };
-    setComments((prev) => [tempComment, ...prev]);
-    setPost((p) => (p ? { ...p, commentsCount: p.commentsCount + 1 } : p));
-    setNewComment('');
-    setIsSending(false);
+    try {
+      const created = await commentsService.addComment(post.id, text);
+      setComments((prev) => [created, ...prev]);
+      setPost((p) => (p ? { ...p, commentsCount: p.commentsCount + 1 } : p));
+      setNewComment('');
+    } catch {
+      Alert.alert('Erreur', "Impossible d'envoyer ce commentaire.");
+    } finally {
+      setIsSending(false);
+    }
   }
 
   // ── Like commentaire ──────────────────────────────────────────────────────
@@ -280,6 +256,11 @@ export default function PostDetailScreen() {
             <Image source={{ uri: post.imageUrl }} style={styles.image} resizeMode="cover" />
           ) : null}
 
+          {/* ── Vidéo ── */}
+          {post.videoUrl ? (
+            <PostVideo uri={post.videoUrl} style={styles.image} />
+          ) : null}
+
           {/* ── Texte du post ── */}
           <Text style={styles.body}>{post.content ?? post.excerpt}</Text>
 
@@ -361,6 +342,12 @@ export default function PostDetailScreen() {
               💬 Commentaires ({comments.length})
             </Text>
 
+            {areCommentsLoading ? (
+              <ActivityIndicator size="small" color={Colors.light.tint} style={styles.commentsLoading} />
+            ) : comments.length === 0 ? (
+              <Text style={styles.noCommentsText}>Aucun commentaire pour l'instant.</Text>
+            ) : null}
+
             {comments.map((comment) => {
               const isLiked = likedComments.has(comment.id);
               const isReplying = replyingTo === comment.id;
@@ -370,7 +357,7 @@ export default function PostDetailScreen() {
                   <View style={styles.commentBody}>
                     <View style={styles.commentHeader}>
                       <Text style={styles.commentAuthorName}>{comment.authorName}</Text>
-                      <Text style={styles.commentTime}>{comment.time}</Text>
+                      <Text style={styles.commentTime}>{formatRelativeTime(comment.createdAt)}</Text>
                     </View>
                     {comment.authorSpecialty ? (
                       <Text style={styles.commentSpecialty}>{comment.authorSpecialty}</Text>
@@ -714,6 +701,15 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '700',
     color: Colors.light.text,
+  },
+  commentsLoading: {
+    marginVertical: 12,
+  },
+  noCommentsText: {
+    fontSize: 13,
+    color: '#667085',
+    textAlign: 'center',
+    marginVertical: 12,
   },
   commentCard: {
     flexDirection: 'row',

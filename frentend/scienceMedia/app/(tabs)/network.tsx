@@ -1,4 +1,4 @@
-import React, { useCallback } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -12,6 +12,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { useNetwork } from '../../hooks/use-network';
+import { getProfileDetailsState } from '../../services/profile.service';
 import type { Connection } from '../../types/user.types';
 
 // ─── Suggestion Card ──────────────────────────────────────────────────────────
@@ -54,6 +55,19 @@ const SuggestionCard = ({
 // ─── Main Screen ──────────────────────────────────────────────────────────────
 export default function MyNetworkScreen(): React.JSX.Element {
   const { suggestions, isLoading, error, refresh, handleConnect, handleDismiss } = useNetwork();
+  const [numberOfFollowers, setNumberOfFollowers] = useState(0);
+
+  // Récupère la même statistique "Connections" que celle affichée sur l'écran Profil,
+  // pour que la valeur reste cohérente entre les deux écrans.
+  // Le backend ne gère pas encore de vraies invitations en attente
+  // (les connexions sont créées immédiatement), donc cette case affiche 0.
+  useEffect(() => {
+    getProfileDetailsState().then((stats) => {
+      if (stats) {
+        setNumberOfFollowers(stats.numberOfFollowers);
+      }
+    });
+  }, []);
 
   const showInitialLoader = isLoading && suggestions.length === 0;
 
@@ -69,12 +83,12 @@ export default function MyNetworkScreen(): React.JSX.Element {
           <Text style={styles.sectionTitle}>Manage my network</Text>
           <View style={styles.statsRow}>
             <View style={styles.statBox}>
-              <Text style={styles.statNumber}>847</Text>
+              <Text style={styles.statNumber}>{numberOfFollowers}</Text>
               <Text style={styles.statLabel}>Connections</Text>
             </View>
             <View style={styles.statDivider} />
             <View style={styles.statBox}>
-              <Text style={styles.statNumber}>124</Text>
+              <Text style={styles.statNumber}>0</Text>
               <Text style={styles.statLabel}>Invitations</Text>
             </View>
           </View>
@@ -84,7 +98,7 @@ export default function MyNetworkScreen(): React.JSX.Element {
         <Text style={styles.sectionTitle}>People you may know</Text>
       </View>
     ),
-    [error]
+    [error, numberOfFollowers]
   );
 
   const renderSuggestionCard = useCallback(

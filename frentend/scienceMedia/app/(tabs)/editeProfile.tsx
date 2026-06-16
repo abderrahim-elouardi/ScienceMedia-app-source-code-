@@ -1,9 +1,9 @@
-import { getUser } from "@/services/auth.service";
+import { getUser, updateStoredUser } from "@/services/auth.service";
 import { editeProfile, getProfileDetailsState } from '@/services/profile.service';
 import { ProfileStatsResponse } from "@/types/profileResponse.type";
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   Alert,
   Image,
@@ -27,25 +27,24 @@ interface ImagePayload {
 export default function EditProfileScreen() {
   // Récupération des données actuelles pour initialiser les champs
   const currentProfile = getUser();
-  const initialImageUri =""
 
   // États locaux du formulaire
   const [username, setUsername] = useState(currentProfile?.username || '');
   const [title, setTitle] = useState(currentProfile?.title || '');
   const [bio, setBio] = useState(currentProfile?.bio || '');
-  
+
   // Contient l'URI locale ou la string Base64 initiale pour l'affichage
-  const [imageUri, setImageUri] = useState<string | undefined>(initialImageUri);
-  getProfileDetailsState().then((stats: ProfileStatsResponse | null) => {
-    if (stats) {
-      const initialImageUri = stats.profileImage 
-    ? `data:${stats.profileImage.imageType};base64,${stats.profileImage.imageData}`
-    : undefined;
-  
-    } else {
-      console.log("Impossible de charger les statistiques");
-    }
-  });
+  const [imageUri, setImageUri] = useState<string | undefined>(undefined);
+
+  // Chargement de la photo de profil actuelle depuis le serveur (une seule fois au montage)
+  useEffect(() => {
+    getProfileDetailsState().then((stats: ProfileStatsResponse | null) => {
+      if (stats?.profileImage) {
+        const cleanBase64 = stats.profileImage.imageData.replace(/[\n\r\s]/g, "");
+        setImageUri(`data:${stats.profileImage.imageType};base64,${cleanBase64}`);
+      }
+    });
+  }, []);
 
 
   // Pour stocker l'objet image traité, prêt pour le backend
@@ -107,6 +106,8 @@ export default function EditProfileScreen() {
     try {
       // Ajout de l'await pour que le bloc try/catch intercepte correctement les erreurs de la requête asynchrone
       await editeProfile(payload);
+      // Met à jour l'utilisateur en cache pour que les écrans Profil/Paramètres affichent les nouvelles infos
+      await updateStoredUser({ username, title, bio });
       Alert.alert("Succès", "Profil mis à jour avec succès !");
     } catch (error) {
       console.error(error);

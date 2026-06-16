@@ -58,6 +58,13 @@ const getToken = (): string | null => _token;
 
 const getUser = (): User | null => _user;
 
+// Met à jour l'utilisateur en cache (mémoire + stockage local) après une modification du profil
+const updateStoredUser = async (updates: Partial<User>): Promise<void> => {
+  if (!_user) return;
+  _user = { ..._user, ...updates };
+  await AsyncStorage.setItem(USER_KEY, JSON.stringify(_user));
+};
+
 const logout = async (): Promise<void> => {
   _token = null;
   _user = null;
@@ -65,4 +72,4 @@ const logout = async (): Promise<void> => {
   await AsyncStorage.removeItem(USER_KEY);
 };
 
-export { authenticate, getAuthToken, getToken, getUser, logout };
+export { authenticate, getAuthToken, getToken, getUser, logout, updateStoredUser };
